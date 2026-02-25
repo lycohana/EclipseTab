@@ -176,8 +176,8 @@ const translations: Record<Language, Translations> = {
             deleteStickerConfirm: 'Are you sure you want to delete this sticker?',
             recycleBin: 'Recycle Bin',
             restoreHint: 'Swipe left to restore, swipe right to delete',
-            emptyRecycleBin: 'No deleted items',
-            emptyRecycleBinHint: 'Deleted stickers will appear here',
+            emptyRecycleBin: 'Nothing here',
+            emptyRecycleBinHint: 'Deleted stickers will show up here',
             recycleBinLimitHint: 'Recycle bin stores up to 30 items',
         },
         dock: {
@@ -190,8 +190,8 @@ const translations: Record<Language, Translations> = {
             l: 'L',
             cancel: 'Cancel',
             confirm: 'Confirm',
-            fontSizeIncrease: 'Press + Increase, Shift for larger step',
-            fontSizeDecrease: 'Press - Decrease, Shift for larger step',
+            fontSizeIncrease: 'Ctrl/⌘ + ↑ Increase, +Shift for larger step',
+            fontSizeDecrease: 'Ctrl/⌘ + ↓ Decrease, +Shift for larger step',
         }
     },
     zh: {
@@ -271,8 +271,8 @@ const translations: Record<Language, Translations> = {
             deleteStickerConfirm: '确定要删除这个贴纸吗？',
             recycleBin: '回收站',
             restoreHint: '左滑还原，右滑删除',
-            emptyRecycleBin: '没有已删除的项目',
-            emptyRecycleBinHint: '删除的贴纸将在这里显示',
+            emptyRecycleBin: '这里空空如也',
+            emptyRecycleBinHint: '删除的贴纸将出现在这里',
             recycleBinLimitHint: '回收站最多存储30条贴纸',
         },
         dock: {
@@ -285,8 +285,8 @@ const translations: Record<Language, Translations> = {
             l: '大',
             cancel: '取消',
             confirm: '确认',
-            fontSizeIncrease: '按 + 键增大字号，Shift 增大更多',
-            fontSizeDecrease: '按 - 键减小字号，Shift 减小更多',
+            fontSizeIncrease: 'Ctrl/⌘ + ↑ 增大字号，+Shift 增大更多',
+            fontSizeDecrease: 'Ctrl/⌘ + ↓ 减小字号，+Shift 减小更多',
         }
     }
 };

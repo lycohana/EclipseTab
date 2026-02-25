@@ -1076,28 +1076,30 @@
     justify-content: center;
     height: 100%;
     color: var(--color-text-secondary);
-    gap: 24px;
+    gap: 6px;
     padding: 60px 20px;
 }
 
 .emptyStateIcon {
-    width: 120px;
-    height: 120px;
-    opacity: 0.6;
+    width: 80px;
+    height: 80px;
+    opacity: 0.4;
     color: var(--color-text-secondary);
+    margin-bottom: 8px;
 }
 
 .emptyStateText {
-    font-size: 18px;
-    font-weight: 500;
+    font-size: 20px;
+    font-weight: 600;
     text-align: center;
     opacity: 0.8;
 }
 
 .emptyStateHint {
-    font-size: 14px;
-    opacity: 0.5;
+    font-size: 15px;
+    opacity: 0.45;
     text-align: center;
+    line-height: 1.5;
 }
 
 /* ===== Swipe Item Wrapper ===== */

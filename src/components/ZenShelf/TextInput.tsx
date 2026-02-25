@@ -8,6 +8,19 @@ import minusIcon from '../../assets/icons/minus.svg';
 import { TEXT_COLORS } from './FloatingToolbar';
 import styles from './ZenShelf.module.css';
 
+// localStorage 键：记忆用户上次使用的字体大小
+const LAST_FONT_SIZE_KEY = 'sticker_last_font_size';
+const DEFAULT_FONT_SIZE = 40;
+
+const getLastFontSize = (): number => {
+    const saved = localStorage.getItem(LAST_FONT_SIZE_KEY);
+    if (saved) {
+        const num = parseInt(saved, 10);
+        if (!isNaN(num) && num >= 12 && num <= 120) return num;
+    }
+    return DEFAULT_FONT_SIZE;
+};
+
 // ============================================================================
 // 文字贴纸的主题感知颜色反转
 // ============================================================================
@@ -56,9 +69,14 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
     const textAlign = 'left' as const;
     const [textColor, setTextColor] = useState(initialStyle?.color || TEXT_COLORS[0]);
     const [fontSize, setFontSize] = useState<number>(
-        (initialStyle?.fontSize as number) || 40
+        (initialStyle?.fontSize as number) || getLastFontSize()
     );
     const [isExiting, setIsExiting] = useState(false);
+
+    // 持久化字体大小到 localStorage
+    useEffect(() => {
+        localStorage.setItem(LAST_FONT_SIZE_KEY, fontSize.toString());
+    }, [fontSize]);
 
     // 挂载时聚焦并仅对工具栏播放入场动画
     useEffect(() => {
@@ -180,16 +198,6 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
             handleSubmit();
         } else if (e.key === 'Escape') {
             handleCancel();
-        } else if (e.key === '+' || e.key === '=') {
-            // 按 + 或 = 键增大字体（Shift 加大步长）
-            e.preventDefault();
-            const step = e.shiftKey ? FONT_SIZE_STEP_LARGE : FONT_SIZE_STEP;
-            setFontSize(prev => Math.min(prev + step, MAX_FONT_SIZE));
-        } else if (e.key === '-' || e.key === '_') {
-            // 按 - 或 _ 键减小字体（Shift 加大步长）
-            e.preventDefault();
-            const step = e.shiftKey ? FONT_SIZE_STEP_LARGE : FONT_SIZE_STEP;
-            setFontSize(prev => Math.max(prev - step, MIN_FONT_SIZE));
         }
         // Shift+Enter 允许换行（默认行为）
     };
