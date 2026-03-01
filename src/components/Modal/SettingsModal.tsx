@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Theme, useTheme, Texture } from '../../context/ThemeContext';
 import { useSystemTheme } from '../../hooks/useSystemTheme';
 import { useLanguage } from '../../context/LanguageContext';
@@ -121,6 +121,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
         setFollowSystem,
         wallpaper,
         setWallpaper,
+        wallpaperId,
+        setWallpaperId,
+        uploadWallpaper,
         gradientId,
         setGradientId,
         texture,
@@ -174,7 +177,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
 
     if (!isVisible) return null;
 
-    const handleThemeSelect = (selectedTheme: Theme) => {
+    const handleThemeSelect = useCallback((selectedTheme: Theme) => {
         setTheme(selectedTheme);
         // 选择默认主题时，将 gradientId 重置为主题默认值
         if (selectedTheme === 'default') {
@@ -183,13 +186,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
         if (followSystem) {
             setFollowSystem(false);
         }
-    };
+    }, [setTheme, setGradientId, followSystem, setFollowSystem]);
 
-    const handleToggleFollowSystem = () => {
+    const handleToggleFollowSystem = useCallback(() => {
         setFollowSystem(!followSystem);
-    };
+    }, [followSystem, setFollowSystem]);
 
-    const handleGradientSelect = (id: string) => {
+    const handleGradientSelect = useCallback((id: string) => {
         // 如果有壁纸，只需清除它并直接设置渐变
         // 不需要特殊处理，因为视觉上的变化是从壁纸到颜色的
         if (wallpaper) {
@@ -209,11 +212,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
         } else {
             setGradientId(id);
         }
-    };
+    }, [wallpaper, setWallpaper, gradientId, setGradientId]);
 
-    const handleTextureSelect = (selectedTexture: Texture) => {
+    const handleTextureSelect = useCallback((selectedTexture: Texture) => {
         setTexture(selectedTexture);
-    };
+    }, [setTexture]);
 
     const modalStyle: React.CSSProperties = {
         left: `${anchorPosition.x}px`,
@@ -360,10 +363,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
                                     onClick={() => handleGradientSelect(preset.id)}
                                     title={preset.name}
                                     style={{
-                                        background: displayColor,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
+                                        background: displayColor
                                     }}
                                 >
                                     {isThemeDefault && (
@@ -384,7 +384,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
 
                     {/* 壁纸部分 - 已移动到底部 */}
                     <div className={styles.wallpaperSection}>
-                        <WallpaperGallery />
+                        <WallpaperGallery
+                            wallpaperId={wallpaperId}
+                            onWallpaperIdChange={setWallpaperId}
+                            onWallpaperClear={() => setWallpaper(null)}
+                            onWallpaperUpload={uploadWallpaper}
+                        />
                     </div>
 
                     {/* 布局设置部分 */}

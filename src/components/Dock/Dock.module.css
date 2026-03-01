@@ -232,7 +232,7 @@
 .emptyHint {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     min-width: 200px;
     max-width: 280px;
     padding: 0 var(--spacing-padding-small);
@@ -241,7 +241,7 @@
     font-size: var(--font-size-medium);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-tertiary);
-    text-align: center;
+    text-align: left;
     line-height: 1.4;
     user-select: none;
 }

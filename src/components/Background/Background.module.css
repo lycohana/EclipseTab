@@ -26,6 +26,12 @@ img.layer {
     object-position: center;
 }
 
+/* For video tags (video wallpapers) */
+video.layer {
+    object-fit: cover;
+    object-position: center;
+}
+
 /* For div tags (gradients/solid colors) */
 /* background-size, background-position, and background-repeat are set via inline styles
    to properly handle multi-layer backgrounds (e.g., texture + solid color) */

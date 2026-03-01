@@ -8,6 +8,7 @@ export interface WallpaperItem {
     data: Blob;
     thumbnail?: Blob;
     createdAt: number;
+    type?: 'image' | 'video'; // undefined = 'image'，向后兼容
 }
 
 export interface StickerImageItem {

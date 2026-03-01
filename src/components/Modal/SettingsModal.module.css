@@ -79,10 +79,12 @@
     border-radius: 8px;
     padding: 4px;
     width: 176px;
-    height: 48px;
     display: flex;
+    align-items: center;
     position: relative;
     isolation: isolate;
+    box-sizing: border-box;
+    line-height: normal;
 }
 
 /* 高亮背景 - 跟随选中项移动 */
@@ -90,8 +92,8 @@
     position: absolute;
     left: 4px;
     top: 4px;
+    bottom: 4px;
     width: 56px;
-    height: 40px;
     background: var(--color-bg-primary);
     border-radius: 4px;
     transition: transform var(--transition-smooth);
@@ -234,6 +236,9 @@
     border: none;
     cursor: pointer;
     transition: all var(--transition-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* 颜色选项悬停效果 */
@@ -318,22 +323,25 @@
 /* 布局切换组容器 - 类似主题切换器 */
 .layoutToggleGroup {
     display: flex;
+    align-items: center;
     position: relative;
     background: var(--color-bg-primary);
     border-radius: 6px;
-    padding: 2px;
+    border: 2px solid var(--color-bg-primary);
     width: 130px;
-    /* 固定宽度使对齐更整齐 */
+    height: 28px;
     isolation: isolate;
+    box-sizing: border-box;
+    /* 去除 line-height，让内部按钮自己控制 */
 }
 
 /* 滑动高亮背景 */
 .layoutHighlight {
     position: absolute;
-    left: 2px;
-    top: 2px;
-    width: calc(50% - 2px);
-    height: calc(100% - 4px);
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 50%;
     background: var(--color-bg-tertiary);
     border-radius: 4px;
     transition: transform var(--transition-smooth);
@@ -346,11 +354,11 @@
     background: transparent;
     border: none;
     border-radius: 4px;
-    height: 28px;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 12px;
+    padding: 0;
     font-family: var(--font-family);
     font-size: var(--font-size-small);
     font-weight: var(--font-weight-regular);
@@ -359,6 +367,7 @@
     z-index: 1;
     transition: color var(--transition-fast);
     white-space: nowrap;
+    line-height: 1;
 }
 
 /* 布局选项悬停效果 */

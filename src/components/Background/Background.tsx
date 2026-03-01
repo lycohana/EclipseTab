@@ -19,7 +19,7 @@ const extractWallpaperUrl = (bgValue: string): string | null => {
 };
 
 export const Background: React.FC = () => {
-    const { backgroundBaseValue, backgroundTextureValue, backgroundTextureTileSize, backgroundBlendMode } = useThemeData();
+    const { backgroundBaseValue, backgroundTextureValue, backgroundTextureTileSize, backgroundBlendMode, wallpaperType } = useThemeData();
 
     // ========================================================================
     // 性能优化: 使用递增计数器代替 Date.now() 作为图层 ID
@@ -33,6 +33,7 @@ export const Background: React.FC = () => {
         id: number;
         value: string;
         wallpaperUrl: string | null;
+        isVideo: boolean;
         visible: boolean;
     }>>([]);
 
@@ -57,6 +58,7 @@ export const Background: React.FC = () => {
             id: layerId,
             value: backgroundBaseValue,
             wallpaperUrl,
+            isVideo: wallpaperUrl ? wallpaperType === 'video' : false,
             visible: false
         };
 
@@ -81,7 +83,7 @@ export const Background: React.FC = () => {
             clearTimeout(animTimer);
             clearTimeout(cleanupTimer);
         };
-    }, [backgroundBaseValue]);
+    }, [backgroundBaseValue, wallpaperType]);
 
     // 2. 处理纹理更改 (顺序：出 -> 入)
     React.useEffect(() => {
@@ -153,15 +155,30 @@ export const Background: React.FC = () => {
             {baseLayers.map((layer) => (
                 <div key={`base-${layer.id}`} className={styles.layerWrapper} style={{ zIndex: 0 }}>
                     {layer.wallpaperUrl ? (
-                        <img
-                            src={layer.wallpaperUrl}
-                            alt=""
-                            className={styles.layer}
-                            style={{
-                                opacity: layer.visible ? 1 : 0,
-                                zIndex: layer.id,
-                            }}
-                        />
+                        layer.isVideo ? (
+                            <video
+                                src={layer.wallpaperUrl}
+                                className={styles.layer}
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                style={{
+                                    opacity: layer.visible ? 1 : 0,
+                                    zIndex: layer.id,
+                                }}
+                            />
+                        ) : (
+                            <img
+                                src={layer.wallpaperUrl}
+                                alt=""
+                                className={styles.layer}
+                                style={{
+                                    opacity: layer.visible ? 1 : 0,
+                                    zIndex: layer.id,
+                                }}
+                            />
+                        )
                     ) : (
                         <div
                             className={styles.layer}

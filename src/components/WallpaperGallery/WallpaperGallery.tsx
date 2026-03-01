@@ -1,13 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { useTheme } from '../../context/ThemeContext';
+
 import { useWallpaperStorage } from '../../hooks/useWallpaperStorage';
 import { WallpaperItem } from '../../utils/db';
 import styles from './WallpaperGallery.module.css';
 import wallpaperIcon from '../../assets/icons/wallpaper.svg';
 import closeIcon from '../../assets/icons/close.svg';
 
-export const WallpaperGallery: React.FC = () => {
-    const { wallpaperId, setWallpaperId, uploadWallpaper, setWallpaper } = useTheme();
+export interface WallpaperGalleryProps {
+    wallpaperId: string | null;
+    onWallpaperIdChange: (id: string) => Promise<void>;
+    onWallpaperClear: () => void;
+    onWallpaperUpload: (file: File) => Promise<void>;
+}
+
+export const WallpaperGallery: React.FC<WallpaperGalleryProps> = React.memo(({
+    wallpaperId,
+    onWallpaperIdChange,
+    onWallpaperClear,
+    onWallpaperUpload
+}) => {
     const { getRecentWallpapers, createWallpaperUrl, deleteWallpaper } = useWallpaperStorage();
     const [recentWallpapers, setRecentWallpapers] = useState<WallpaperItem[]>([]);
     const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
@@ -40,7 +51,7 @@ export const WallpaperGallery: React.FC = () => {
 
         setIsUploading(true);
         try {
-            await uploadWallpaper(file);
+            await onWallpaperUpload(file);
             await loadWallpapers();
         } catch (error) {
             console.error('Upload failed:', error);
@@ -54,7 +65,7 @@ export const WallpaperGallery: React.FC = () => {
 
     const handleWallpaperSelect = async (id: string) => {
         if (id === wallpaperId) return;
-        await setWallpaperId(id);
+        await onWallpaperIdChange(id);
     };
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -62,7 +73,7 @@ export const WallpaperGallery: React.FC = () => {
         try {
             await deleteWallpaper(id);
             if (id === wallpaperId) {
-                setWallpaper(null);
+                onWallpaperClear();
             }
             await loadWallpapers();
         } catch (error) {
@@ -81,7 +92,7 @@ export const WallpaperGallery: React.FC = () => {
                 <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     onChange={handleFileChange}
                     style={{ display: 'none' }}
                 />
@@ -110,4 +121,4 @@ export const WallpaperGallery: React.FC = () => {
             ))}
         </div>
     );
-};
+});

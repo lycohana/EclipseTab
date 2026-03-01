@@ -47,7 +47,7 @@ const SUGGESTION_API = {
  * 尝试使用 fetch 获取搜索建议
  * 在浏览器扩展环境下，需检查 optional_host_permissions
  */
-async function fetchSuggestions(query: string): Promise<string[]> {
+async function fetchSuggestions(query: string, signal?: AbortSignal): Promise<string[]> {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) return [];
 
@@ -86,6 +86,7 @@ async function fetchSuggestions(query: string): Promise<string[]> {
             headers: {
                 'Accept': 'application/json',
             },
+            signal,
         });
 
         if (response.ok) {
@@ -103,6 +104,7 @@ async function fetchSuggestions(query: string): Promise<string[]> {
     try {
         const response = await fetch(SUGGESTION_API.baidu.buildUrl(trimmedQuery), {
             method: 'GET',
+            signal,
         });
 
         if (response.ok) {
@@ -157,7 +159,7 @@ export function useSearchSuggestions(query: string): UseSearchSuggestionsResult 
         setError(null);
 
         try {
-            const results = await fetchSuggestions(trimmedQuery);
+            const results = await fetchSuggestions(trimmedQuery, abortControllerRef.current?.signal);
 
             // 仅当这仍然是最新请求时才更新状态
             if (latestRequestRef.current === currentRequestId) {

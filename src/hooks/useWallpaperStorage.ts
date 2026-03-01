@@ -115,6 +115,97 @@ const generateThumbnail = async (file: File | Blob): Promise<Blob> => {
     });
 };
 
+const generateVideoThumbnail = async (file: File | Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        const url = URL.createObjectURL(file);
+
+        // 10 秒超时，避免 promise 永远不 resolve
+        const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error('Video thumbnail generation timed out'));
+        }, 10000);
+
+        const cleanup = () => {
+            clearTimeout(timeout);
+            URL.revokeObjectURL(url);
+        };
+
+        const captureFrame = () => {
+            const canvas = document.createElement('canvas');
+            const targetSize = 200;
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                cleanup();
+                reject(new Error('Failed to get canvas context'));
+                return;
+            }
+
+            // 计算封面尺寸（居中裁剪）
+            const vw = video.videoWidth || 320;
+            const vh = video.videoHeight || 240;
+            const minDimension = Math.min(vw, vh);
+            const sourceX = (vw - minDimension) / 2;
+            const sourceY = (vh - minDimension) / 2;
+
+            ctx.drawImage(
+                video,
+                sourceX,
+                sourceY,
+                minDimension,
+                minDimension,
+                0,
+                0,
+                targetSize,
+                targetSize
+            );
+
+            canvas.toBlob(
+                (blob) => {
+                    cleanup();
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Failed to generate video thumbnail blob'));
+                    }
+                },
+                'image/webp',
+                0.6
+            );
+        };
+
+        video.onseeked = captureFrame;
+
+        video.onloadedmetadata = () => {
+            // metadata 加载完成后，duration 可用
+            const seekTime = (video.duration && isFinite(video.duration))
+                ? Math.min(1, video.duration * 0.1)
+                : 0;
+
+            if (seekTime === 0 && video.currentTime === 0) {
+                // 已经在第 0 帧，不会触发 onseeked，直接截帧
+                // 但需要等帧数据就绪
+                video.oncanplay = () => captureFrame();
+            } else {
+                video.currentTime = seekTime;
+            }
+        };
+
+        video.onerror = () => {
+            cleanup();
+            reject(new Error('Failed to load video for thumbnail'));
+        };
+
+        video.preload = 'auto';
+        video.muted = true;
+        video.playsInline = true;
+        video.src = url;
+    });
+};
+
 export const useWallpaperStorage = (): UseWallpaperStorageReturn => {
     const [isSupported, setIsSupported] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -151,13 +242,27 @@ export const useWallpaperStorage = (): UseWallpaperStorageReturn => {
 
         setIsProcessing(true);
         try {
-            const [blobToSave, thumbnailBlob] = await Promise.all([
-                compressImage(file),
-                generateThumbnail(file).catch(err => {
-                    console.warn('Failed to generate thumbnail:', err);
+            const isVideo = file.type.startsWith('video/');
+
+            let blobToSave: Blob;
+            let thumbnailBlob: Blob | undefined;
+
+            if (isVideo) {
+                // 视频不做压缩，直接存储
+                blobToSave = file;
+                thumbnailBlob = await generateVideoThumbnail(file).catch(err => {
+                    console.warn('Failed to generate video thumbnail:', err);
                     return undefined;
-                })
-            ]);
+                });
+            } else {
+                [blobToSave, thumbnailBlob] = await Promise.all([
+                    compressImage(file),
+                    generateThumbnail(file).catch(err => {
+                        console.warn('Failed to generate thumbnail:', err);
+                        return undefined;
+                    })
+                ]);
+            }
 
             const id = `wallpaper_${Date.now()}`;
 
@@ -165,7 +270,8 @@ export const useWallpaperStorage = (): UseWallpaperStorageReturn => {
                 id,
                 data: blobToSave,
                 thumbnail: thumbnailBlob,
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                type: isVideo ? 'video' : 'image'
             };
 
             await db.save(item);

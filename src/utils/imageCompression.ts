@@ -19,32 +19,26 @@ const STICKER_COMPRESSION_QUALITY = 0.85;
 
 // ============================================================================
 // 性能优化: 复用单个 Canvas 实例，避免每次压缩都创建 DOM 元素
+// 注意: 使用 HTMLCanvasElement 而非 OffscreenCanvas，因为需要同步的 toDataURL()
 // ============================================================================
 
-let reusableIconCanvas: HTMLCanvasElement | OffscreenCanvas | null = null;
-let reusableIconCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+let reusableIconCanvas: HTMLCanvasElement | null = null;
+let reusableIconCtx: CanvasRenderingContext2D | null = null;
 
 /**
- * 获取可复用的 Canvas (优先使用 OffscreenCanvas)
+ * 获取可复用的 Canvas
  */
 function getReusableIconCanvas(width: number, height: number): {
-    canvas: HTMLCanvasElement | OffscreenCanvas;
-    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
 } | null {
     try {
         // 首次使用时创建 Canvas
         if (!reusableIconCanvas) {
-            // 优先使用 OffscreenCanvas (不阻塞主线程)
-            if (typeof OffscreenCanvas !== 'undefined') {
-                reusableIconCanvas = new OffscreenCanvas(width, height);
-                reusableIconCtx = reusableIconCanvas.getContext('2d');
-            } else {
-                // 回退到普通 Canvas
-                reusableIconCanvas = document.createElement('canvas');
-                reusableIconCanvas.width = width;
-                reusableIconCanvas.height = height;
-                reusableIconCtx = reusableIconCanvas.getContext('2d');
-            }
+            reusableIconCanvas = document.createElement('canvas');
+            reusableIconCanvas.width = width;
+            reusableIconCanvas.height = height;
+            reusableIconCtx = reusableIconCanvas.getContext('2d');
         }
 
         if (!reusableIconCtx) return null;
@@ -107,26 +101,7 @@ export async function compressIcon(dataUrl: string): Promise<string> {
                 ctx.drawImage(img, 0, 0, width, height);
 
                 // 转换为 WebP 格式
-                let compressedDataUrl: string;
-                if (canvas instanceof OffscreenCanvas) {
-                    // OffscreenCanvas 需要使用 convertToBlob (异步)
-                    // 但为了保持同步 API，这里仍使用 HTMLCanvasElement 回退
-                    // 注意: OffscreenCanvas 的 toDataURL 在某些浏览器不支持
-                    // 如果需要完全异步处理，可以重构为使用 convertToBlob
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = width;
-                    tempCanvas.height = height;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    if (tempCtx) {
-                        tempCtx.drawImage(canvas as OffscreenCanvas, 0, 0);
-                        compressedDataUrl = tempCanvas.toDataURL('image/webp', ICON_COMPRESSION_QUALITY);
-                    } else {
-                        resolve(dataUrl);
-                        return;
-                    }
-                } else {
-                    compressedDataUrl = canvas.toDataURL('image/webp', ICON_COMPRESSION_QUALITY);
-                }
+                const compressedDataUrl = canvas.toDataURL('image/webp', ICON_COMPRESSION_QUALITY);
 
                 // 如果压缩后更大（极少数情况），返回原图
                 if (compressedDataUrl.length > dataUrl.length) {
@@ -182,22 +157,7 @@ export async function compressStickerImage(dataUrl: string): Promise<string> {
                 const { canvas, ctx } = canvasData;
                 ctx.drawImage(img, 0, 0, width, height);
 
-                let compressedDataUrl: string;
-                if (canvas instanceof OffscreenCanvas) {
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = width;
-                    tempCanvas.height = height;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    if (tempCtx) {
-                        tempCtx.drawImage(canvas as OffscreenCanvas, 0, 0);
-                        compressedDataUrl = tempCanvas.toDataURL('image/webp', STICKER_COMPRESSION_QUALITY);
-                    } else {
-                        resolve(dataUrl);
-                        return;
-                    }
-                } else {
-                    compressedDataUrl = canvas.toDataURL('image/webp', STICKER_COMPRESSION_QUALITY);
-                }
+                const compressedDataUrl = canvas.toDataURL('image/webp', STICKER_COMPRESSION_QUALITY);
 
                 if (compressedDataUrl.length > dataUrl.length) {
                     resolve(dataUrl);

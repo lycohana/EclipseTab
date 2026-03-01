@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 
 type Language = 'en' | 'zh';
 
@@ -276,7 +276,7 @@ const translations: Record<Language, Translations> = {
             recycleBinLimitHint: '回收站最多存储30条贴纸',
         },
         dock: {
-            emptyHint: '右键或点击右上角进入编辑模式添加图标',
+            emptyHint: '右键进入编辑模式，或鼠标移动到页面右上角并点击编辑图标',
         },
         textInput: {
             placeholder: '输入文本...',
@@ -311,11 +311,11 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         localStorage.setItem('app_language', language);
     }, [language]);
 
-    const value = {
+    const value = useMemo(() => ({
         language,
         setLanguage,
         t: translations[language]
-    };
+    }), [language, setLanguage]);
 
     return (
         <LanguageContext.Provider value={value}>

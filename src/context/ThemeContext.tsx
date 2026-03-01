@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { storage } from '../utils/storage';
 import { useSystemTheme } from '../hooks/useSystemTheme';
 import { useWallpaperStorage } from '../hooks/useWallpaperStorage';
+import { db } from '../utils/db';
 import { GRADIENT_PRESETS } from '../constants/gradients';
 import { generateTextureDataUrl, getTextureSize, type TextureId } from '../constants/textures';
 import { getTextureColorFromBackground } from '../utils/colorUtils';
@@ -23,6 +24,7 @@ interface ThemeDataContextType {
     theme: Theme;
     followSystem: boolean;
     wallpaper: string | null;
+    wallpaperType: 'image' | 'video';
     gradientId: string | null;
     texture: Texture;
     wallpaperId: string | null;
@@ -61,7 +63,8 @@ const ThemeActionsContext = createContext<ThemeActionsContextType | undefined>(u
 // ============================================================================
 type ThemeContextType = ThemeDataContextType & ThemeActionsContextType;
 
-const MAX_WALLPAPER_SIZE = 20 * 1024 * 1024; // 20MB 限制
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB 图片限制
+const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500MB 视频限制
 
 /**
  * 判断背景颜色/渐变是浅色还是深色
@@ -127,7 +130,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const systemTheme = useSystemTheme();
 
     // 壁纸存储钩子
-    const { saveWallpaper: saveToDb, getWallpaper: getFromDb, createWallpaperUrl } = useWallpaperStorage();
+    const { saveWallpaper: saveToDb, createWallpaperUrl } = useWallpaperStorage();
 
     // 核心主题状态
     const [manualTheme, setManualTheme] = useState<Theme>(() => {
@@ -141,6 +144,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Current wallpaper URL (blob URL, 仅内存状态)
     const [wallpaper, setWallpaperState] = useState<string | null>(null);
+
+    // Current wallpaper type
+    const [wallpaperType, setWallpaperType] = useState<'image' | 'video'>('image');
 
     // Current wallpaper ID (for IndexedDB)
     const [wallpaperId, setWallpaperIdState] = useState<string | null>(() => {
@@ -180,14 +186,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 如果 ID 存在，从数据库加载壁纸
     useEffect(() => {
         if (wallpaperId) {
-            getFromDb(wallpaperId).then(blob => {
-                if (blob) {
-                    const url = createWallpaperUrl(blob);
+            // 需要获取完整的 WallpaperItem 以读取 type
+            db.get(wallpaperId).then(item => {
+                if (item) {
+                    const url = createWallpaperUrl(item.data);
                     setWallpaperState(url);
+                    setWallpaperType(item.type || 'image');
                 }
             });
         }
-    }, [wallpaperId, getFromDb, createWallpaperUrl]);
+    }, [wallpaperId, createWallpaperUrl]);
 
     // 更新手动主题
     const setTheme = useCallback((newTheme: Theme) => {
@@ -219,23 +227,29 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const setWallpaperId = useCallback(async (id: string) => {
         setWallpaperIdState(id);
         storage.saveWallpaperId(id);
-        const blob = await getFromDb(id);
-        if (blob) {
-            const url = createWallpaperUrl(blob);
+        // 需要获取完整的 WallpaperItem 以读取 type
+        const item = await db.get(id);
+        if (item) {
+            const url = createWallpaperUrl(item.data);
             setWallpaperState(url);
+            setWallpaperType(item.type || 'image');
         }
-    }, [getFromDb, createWallpaperUrl]);
+    }, [createWallpaperUrl]);
 
     // 上传壁纸文件
     const uploadWallpaper = useCallback(async (file: File) => {
-        // 验证文件大小
-        if (file.size > MAX_WALLPAPER_SIZE) {
-            throw new Error(`图片大小不能超过 ${MAX_WALLPAPER_SIZE / 1024 / 1024}MB`);
-        }
+        const isVideo = file.type.startsWith('video/');
+        const isImage = file.type.startsWith('image/');
 
         // 验证文件类型
-        if (!file.type.startsWith('image/')) {
-            throw new Error('请选择图片文件');
+        if (!isImage && !isVideo) {
+            throw new Error('请选择图片或视频文件');
+        }
+
+        // 验证文件大小
+        const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+        if (file.size > maxSize) {
+            throw new Error(`文件大小不能超过 ${maxSize / 1024 / 1024}MB`);
         }
 
         try {
@@ -401,6 +415,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         theme,
         followSystem,
         wallpaper,
+        wallpaperType,
         gradientId,
         texture,
         wallpaperId,
@@ -412,7 +427,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         dockPosition,
         iconSize,
         openInNewTab,
-    }), [theme, followSystem, wallpaper, gradientId, texture, wallpaperId, backgroundValue, backgroundBaseValue, backgroundTextureValue, backgroundTextureTileSize, backgroundBlendMode, dockPosition, iconSize, openInNewTab]);
+    }), [theme, followSystem, wallpaper, wallpaperType, gradientId, texture, wallpaperId, backgroundValue, backgroundBaseValue, backgroundTextureValue, backgroundTextureTileSize, backgroundBlendMode, dockPosition, iconSize, openInNewTab]);
 
     const actionsValue: ThemeActionsContextType = useMemo(() => ({
         setTheme,

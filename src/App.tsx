@@ -1,10 +1,8 @@
-import { useState, useMemo, useCallback, lazy, Suspense, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useMemo, useCallback, lazy, Suspense, useEffect, useRef } from 'react';
 import { DockItem } from './types';
 import { SEARCH_ENGINES } from './constants/searchEngines';
 import { useDockData, useDockUI, useDockDrag } from './context/DockContext';
-import { useThemeData } from './context/ThemeContext';
-import { Searcher } from './components/Searcher/Searcher';
-import { Dock } from './components/Dock/Dock';
+import { DockLayoutContainer } from './components/DockLayoutContainer';
 import { Editor } from './components/Editor/Editor';
 import { Settings } from './components/Settings/Settings';
 import { Background } from './components/Background/Background';
@@ -29,14 +27,10 @@ function App() {
     dockItems,
     selectedSearchEngine,
     setSelectedSearchEngine,
-    handleItemDelete,
     handleItemSave,
-    handleItemsReorder,
     handleFolderItemsReorder,
     handleFolderItemDelete,
     handleDragFromFolder,
-    handleDragToFolder,
-    handleDropOnFolder,
   } = useDockData();
 
   // UI 层 (中频变化) - 仅在 editMode/openFolder 变化时重渲染
@@ -52,30 +46,11 @@ function App() {
   // 拖拽层 (高频变化) - 仅在拖拽状态变化时重渲染
   const { draggingItem, setDraggingItem, setFolderPlaceholderActive } = useDockDrag();
 
-  // 布局设置
-  const { dockPosition, openInNewTab } = useThemeData();
-
   // 计算派生状态
   const openFolder = useMemo(
     () => dockItems.find((item) => item.id === openFolderId),
     [dockItems, openFolderId]
   );
-
-  // 组合操作 - 需要同时访问数据和 UI
-  const handleItemClick = useCallback((item: DockItem, rect?: DOMRect) => {
-    if (item.type === 'folder') {
-      setOpenFolderId(item.id);
-      setFolderAnchor(rect ?? null);
-    } else if (item.url) {
-      window.open(item.url, openInNewTab ? '_blank' : '_self');
-    }
-  }, [setOpenFolderId, setFolderAnchor, openInNewTab]);
-
-  const handleHoverOpenFolder = useCallback((_item: DockItem, folder: DockItem) => {
-    if (folder.type === 'folder') {
-      setOpenFolderId(folder.id);
-    }
-  }, [setOpenFolderId]);
 
   // 本地 UI 状态 (Modal 相关)
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
@@ -87,36 +62,7 @@ function App() {
   const [editingItem, setEditingItem] = useState<DockItem | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [dockWidth, setDockWidth] = useState<number | null>(null);
 
-  // ============================================================================
-  // 响应式缩放: 当窗口宽度接近容器宽度时，缩放底部容器
-  // ============================================================================
-  const SCALE_PADDING = 48; // 左右各留 24px 边距
-  const MIN_SCALE = 0.5; // 最小缩放比例
-
-  const [containerScale, setContainerScale] = useState(1);
-
-  useLayoutEffect(() => {
-    const calculateScale = () => {
-      const windowWidth = window.innerWidth;
-      // 使用实际的 dockWidth 作为阈值基准，如果还没有测量到则使用默认值 640
-      const containerWidth = dockWidth ?? 640;
-      const scaleThreshold = containerWidth + SCALE_PADDING;
-
-      if (windowWidth >= scaleThreshold) {
-        setContainerScale(1);
-      } else {
-        // 计算缩放比例: 窗口宽度 / 阈值宽度
-        const scale = Math.max(MIN_SCALE, windowWidth / scaleThreshold);
-        setContainerScale(scale);
-      }
-    };
-
-    calculateScale();
-    window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
-  }, [dockWidth]);
   // 跟踪拖拽来源，用于区分内部拖拽和外部拖拽
   const [draggingFromFolder, setDraggingFromFolder] = useState(false);
 
@@ -173,47 +119,30 @@ function App() {
     };
   }, []);
 
-  const handleSearch = (query: string) => {
-    if (selectedSearchEngine.id === 'default') {
-      // 使用 Chrome Search API (如果在扩展环境)
-      // @ts-ignore - chrome 命名空间
-      if (typeof chrome !== 'undefined' && chrome.search && chrome.search.query) {
-        // @ts-ignore - chrome.search 类型定义
-        chrome.search.query({ text: query, disposition: 'CURRENT_TAB' });
-        return;
-      }
 
-      // 开发环境或 API 不可用时的回退方案 (使用 Google)
-      window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, openInNewTab ? '_blank' : '_self');
-      return;
-    }
 
-    const searchUrl = `${selectedSearchEngine.url}${encodeURIComponent(query)}`;
-    window.open(searchUrl, openInNewTab ? '_blank' : '_self');
-  };
-
-  const handleItemEdit = (item: DockItem, rect?: DOMRect) => {
+  const handleItemEdit = useCallback((item: DockItem, rect?: DOMRect) => {
     setEditingItem(item);
     setAddIconAnchor(rect ?? null);
     setIsAddEditModalOpen(true);
-  };
+  }, []);
 
-  const handleItemAdd = () => {
+  const handleItemAdd = useCallback(() => {
     setEditingItem(null);
     setIsAddEditModalOpen(true);
-  };
+  }, []);
 
-  const handleModalSave = (data: Partial<DockItem>) => {
+  const handleModalSave = useCallback((data: Partial<DockItem>) => {
     handleItemSave(data, editingItem);
     setIsAddEditModalOpen(false);
     setEditingItem(null);
-  };
+  }, [handleItemSave, editingItem]);
 
   const handleFolderItemClick = useCallback((item: DockItem) => {
     if (item.url) {
-      window.open(item.url, openInNewTab ? '_blank' : '_self');
+      window.open(item.url, '_blank'); // Temporary fallback, should be handled by DockLayoutContainer or openInNewTab value passed down
     }
-  }, [openInNewTab]);
+  }, []);
 
   const handleFolderItemEdit = useCallback((item: DockItem, rect?: DOMRect) => {
     handleItemEdit(item, rect);
@@ -262,9 +191,9 @@ function App() {
             <feMorphology in="SourceAlpha" operator="dilate" radius="4.5" result="dilated" />
             {/* 步骤2: 轻微模糊使边缘变圆滑 */}
             <feGaussianBlur in="dilated" stdDeviation="2" result="blurred" />
-            {/* 步骤3: 使用 feComponentTransfer 锐化边缘,将模糊重新变成实心 */}
+            {/* 步骤3: 使用 feComponentTransfer 锐化边缘, 将模糊重新变成实心硬边缘 */}
             <feComponentTransfer in="blurred" result="rounded">
-              <feFuncA type="table" tableValues="0 0 0.5 1 1 1 1 1" />
+              <feFuncA type="discrete" tableValues="0 1" />
             </feComponentTransfer>
             {/* 步骤4: 将圆角轮廓填充为 --color-sticker-stroke (动态更新) */}
             <feFlood floodColor="white" result="white" />
@@ -283,47 +212,17 @@ function App() {
         setSettingsAnchor({ left: pos.x, top: pos.y, right: pos.x, bottom: pos.y, width: 0, height: 0, x: pos.x, y: pos.y, toJSON: () => ({}) } as DOMRect);
         setIsSettingsModalOpen(true);
       }} />
-      <div
-        className={dockPosition === 'center' ? styles.containerCenter : styles.container}
-        data-ui-zone="bottom"
-        style={containerScale < 1 ? {
-          transform: dockPosition === 'center'
-            ? `translate(-50%, -50%) scale(${containerScale})`
-            : `translate(-50%, -100%) scale(${containerScale})`,
-          transformOrigin: dockPosition === 'center' ? 'center center' : 'bottom center',
-        } : undefined}
-      >
-        <Searcher
-          searchEngine={selectedSearchEngine}
-          onSearch={handleSearch}
-          onSearchEngineClick={(rect) => {
-            setSearchEngineAnchor(rect);
-            setIsSearchEngineModalOpen(true);
-          }}
-          openInNewTab={openInNewTab}
-          containerStyle={dockWidth ? { width: `${dockWidth}px` } : undefined}
-        />
-        <Dock
-          items={dockItems}
-          isEditMode={isEditMode}
-          onItemClick={handleItemClick}
-          onItemEdit={handleItemEdit}
-          onItemDelete={handleItemDelete}
-          onItemAdd={(rect) => {
-            setAddIconAnchor(rect ?? null);
-            handleItemAdd();
-          }}
-          onItemsReorder={handleItemsReorder}
-          onDropToFolder={handleDropOnFolder}
-          onDragToOpenFolder={handleDragToFolder}
-          onHoverOpenFolder={handleHoverOpenFolder}
-          onLongPressEdit={() => setIsEditMode(true)}
-          onWidthChange={(w) => setDockWidth(w)}
-          onDragStart={(item) => setDraggingItem(item)}
-          onDragEnd={() => setDraggingItem(null)}
-          externalDragItem={draggingItem}
-        />
-      </div>
+      <DockLayoutContainer
+        onSearchEngineClick={(rect) => {
+          setSearchEngineAnchor(rect);
+          setIsSearchEngineModalOpen(true);
+        }}
+        onItemEdit={handleItemEdit}
+        onItemAdd={(rect) => {
+          setAddIconAnchor(rect ?? null);
+          handleItemAdd();
+        }}
+      />
       {/* 左上角触发热点：悬停显示设置按钮 */}
       <div
         ref={settingsAreaRef}
@@ -387,16 +286,18 @@ function App() {
           />
         </Suspense>
       )}
-      <Suspense fallback={null}>
-        <SearchEngineModal
-          isOpen={isSearchEngineModalOpen}
-          selectedEngine={selectedSearchEngine}
-          engines={SEARCH_ENGINES}
-          onClose={() => setIsSearchEngineModalOpen(false)}
-          onSelect={setSelectedSearchEngine}
-          anchorRect={searchEngineAnchor}
-        />
-      </Suspense>
+      {isSearchEngineModalOpen && (
+        <Suspense fallback={null}>
+          <SearchEngineModal
+            isOpen={isSearchEngineModalOpen}
+            selectedEngine={selectedSearchEngine}
+            engines={SEARCH_ENGINES}
+            onClose={() => setIsSearchEngineModalOpen(false)}
+            onSelect={setSelectedSearchEngine}
+            anchorRect={searchEngineAnchor}
+          />
+        </Suspense>
+      )}
       {isSettingsModalOpen && (
         <Suspense fallback={null}>
           <SettingsModal

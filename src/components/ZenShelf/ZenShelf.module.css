@@ -673,12 +673,26 @@
     }
 }
 
+/* 输入框为空时（显示占位符），移除 SVG 描边滤镜以避免 discrete 模式的渲染问题 */
+.stickerPreviewInput:empty {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+}
+
 /* 占位符样式 */
 .stickerPreviewInput:empty::before {
     content: attr(data-placeholder);
-    color: var(--color-text-secondary);
-    opacity: 0.5;
+    color: #999;
     pointer-events: none;
+    /* 用 text-shadow 模拟圆角描边，替代被移除的 SVG 滤镜，确保深色背景下可见 */
+    text-shadow:
+        -2px -2px 2px white,
+        2px -2px 2px white,
+        -2px 2px 2px white,
+        2px 2px 2px white,
+        0 -2px 2px white,
+        0 2px 2px white,
+        -2px 0 2px white,
+        2px 0 2px white;
 }
 
 /* ===== 跟随工具栏 ===== */
