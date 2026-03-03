@@ -45,8 +45,8 @@ const RecycleBinItem: React.FC<{
     const isHorizontalSwipe = useRef<boolean | null>(null);
     const offsetXRef = useRef(0);
     const itemRef = useRef<HTMLDivElement>(null);
-    const THRESHOLD = 100;
-    const MAX_OFFSET = 200;
+    const THRESHOLD = 200;
+    const MAX_OFFSET = 300;
     const DIRECTION_THRESHOLD = 10;
 
     // 解析图片贴纸的 Blob URL
@@ -207,6 +207,7 @@ const RecycleBinItem: React.FC<{
         isSpringBack ? styles.springBack : '',
         animationState === 'restoring' ? styles.restoring : '',
         animationState === 'deleting' ? styles.permanentlyDeleting : '',
+        isThresholdReached ? styles.thresholdReached : '',
     ].filter(Boolean).join(' ');
 
     // 计算背景的 className - Remove threshold check for immediate feedback
@@ -237,12 +238,20 @@ const RecycleBinItem: React.FC<{
                 {/* Left side content (Visible when dragging Right -> Delete) */}
                 <div className={styles.swipeActionContent} style={{ opacity: offsetX > 0 ? Math.min(offsetX / 50, 1) : 0 }}>
                     <img src={TrashIcon} alt="delete" className={styles.swipeActionIcon} />
-                    <span>{t.contextMenu?.delete || "Delete"}</span>
+                    <span>
+                        {isThresholdReached
+                            ? (t.space?.releaseToDelete || "Release to delete")
+                            : (t.contextMenu?.delete || "Delete")}
+                    </span>
                 </div>
 
                 {/* Right side content (Visible when dragging Left -> Restore) */}
                 <div className={styles.swipeActionContent} style={{ opacity: offsetX < 0 ? Math.min(Math.abs(offsetX) / 50, 1) : 0, marginLeft: 'auto' }}>
-                    <span>{t.contextMenu?.restore || "Restore"}</span>
+                    <span>
+                        {isThresholdReached
+                            ? (t.space?.releaseToRestore || "Release to restore")
+                            : (t.contextMenu?.restore || "Restore")}
+                    </span>
                     <img src={CancelIcon} alt="restore" className={styles.swipeActionIcon} />
                 </div>
             </div>

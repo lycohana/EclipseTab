@@ -957,9 +957,8 @@
 
 
 .recycleBinContent {
-    width: 90%;
+    width: 100%;
     height: 100%;
-    max-width: 1400px;
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -971,13 +970,12 @@
 
 .recycleBinHeader {
     width: 100%;
-    max-width: 600px;
-    margin: 0 auto;
+    margin: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     color: var(--color-text-primary);
-    padding: 0;
+    padding: 0 360px;
 }
 
 .recycleBinTitle {
@@ -1047,9 +1045,9 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     /* gap: 24px; Removed gap to allow margin collapse animation */
-    padding: 0px;
+    padding: 24px 360px;
     overflow-y: auto;
 }
 
@@ -1074,7 +1072,7 @@
 .recycleItemPreview {
     max-width: 100%;
     height: auto;
-    max-height: 400px;
+    max-height: 160px;
     object-fit: contain;
     /* Match image sticker style */
     outline: 6px solid var(--color-sticker-stroke);
@@ -1089,9 +1087,11 @@
     align-items: center;
     justify-content: center;
     height: 100%;
+    width: 100%;
+    /* Adjust for grid padding */
     color: var(--color-text-secondary);
     gap: 6px;
-    padding: 60px 20px;
+    padding: 60px 0;
 }
 
 .emptyStateIcon {
@@ -1138,7 +1138,7 @@
 .recycleBinItemWrapper {
     position: relative;
     width: 100%;
-    max-width: 600px;
+    max-width: 800px;
     border-radius: var(--radius-medium);
     margin-bottom: 24px;
 
@@ -1177,6 +1177,11 @@
     /* Allow vertical scroll, handle horizontal in JS */
 }
 
+.recycleBinItem.thresholdReached {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
 /* Swipe background layer */
 .swipeBackground {
     position: absolute;
@@ -1202,12 +1207,14 @@
 }
 
 /* Threshold reached state - enhanced visual feedback */
-.swipeBackground.delete.threshold {
-    background: linear-gradient(90deg, rgba(255, 59, 48, 1) 0%, rgba(255, 59, 48, 0.8) 60%, transparent 100%);
+.swipeBackground.restore.threshold {
+    background: linear-gradient(270deg, rgba(52, 199, 89, 1) 0%, rgba(52, 199, 89, 0.9) 60%, transparent 100%);
+    box-shadow: inset 0 0 40px rgba(52, 199, 89, 0.2);
 }
 
-.swipeBackground.restore.threshold {
-    background: linear-gradient(270deg, rgba(52, 199, 89, 1) 0%, rgba(52, 199, 89, 0.8) 60%, transparent 100%);
+.swipeBackground.delete.threshold {
+    background: linear-gradient(90deg, rgba(255, 59, 48, 1) 0%, rgba(255, 59, 48, 0.9) 60%, transparent 100%);
+    box-shadow: inset 0 0 40px rgba(255, 59, 48, 0.2);
 }
 
 /* Swipe action content (icons and text) */
@@ -1408,4 +1415,9 @@
     /* Above background */
     touch-action: pan-y;
     /* Allow vertical scroll, handle horizontal in JS */
+}
+
+/* Ensure text stickers have vertical padding for better height/swipe feel while keeping left alignment */
+.recycleBinItem .textSticker {
+    padding: 12px 0;
 }
