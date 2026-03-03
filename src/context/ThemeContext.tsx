@@ -26,6 +26,7 @@ interface ThemeDataContextType {
     wallpaper: string | null;
     wallpaperType: 'image' | 'video';
     gradientId: string | null;
+    solidId: string | null;
     texture: Texture;
     wallpaperId: string | null;
     backgroundValue: string;
@@ -49,6 +50,7 @@ interface ThemeActionsContextType {
     setWallpaper: (wallpaper: string | null) => void;
     uploadWallpaper: (file: File) => Promise<void>;
     setGradientId: (gradientId: string | null) => void;
+    setSolidId: (solidId: string | null) => void;
     setTexture: (texture: Texture) => void;
     setWallpaperId: (id: string) => Promise<void>;
     setDockPosition: (position: DockPosition) => void;
@@ -71,8 +73,13 @@ const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500MB 视频限制
  * 如果背景是浅色（需要深色文字），返回 true
  */
 const isBackgroundLight = (backgroundValue: string): boolean => {
-    // 如果是壁纸 URL，假设为浅色背景 (无法直接分析图像)
-    if (backgroundValue.startsWith('url(')) {
+    // 提取实际的底色层（跳过可能存在的纹理层）
+    // 背景值可能是 "url(data:...), #ffffff" 或 "url(blob:...), #ffffff"
+    const layers = backgroundValue.split(',').map(l => l.trim());
+    const baseLayer = layers[layers.length - 1];
+
+    // 如果最后层是 blob URL (壁纸)，由于无法分析图像，默认返回浅色以使用深色文字
+    if (baseLayer.startsWith('url(blob:')) {
         return true;
     }
 
@@ -160,6 +167,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const [gradientId, setGradientIdState] = useState<string | null>(() => {
         return storage.getGradient();
+    });
+
+    const [solidId, setSolidIdState] = useState<string | null>(() => {
+        return storage.getSolidGradient();
     });
 
     const [texture, setTextureState] = useState<Texture>(() => {
@@ -261,11 +272,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     }, [saveToDb, setWallpaperId]);
 
-    // 更新渐变
+    // 更新渐变 (Default 模式使用)
     const setGradientId = useCallback((id: string | null) => {
         setGradientIdState(id);
         storage.saveGradient(id);
-        // 此处不再需要重置纹理，因为纹理可以与纯色共存
+    }, []);
+
+    // 更新纯色 (非 Default 模式使用)
+    const setSolidId = useCallback((id: string | null) => {
+        setSolidIdState(id);
+        storage.saveSolidGradient(id);
     }, []);
 
     const setTexture = useCallback((newTexture: Texture) => {
@@ -311,8 +327,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             baseValue = `url(${wallpaper})`;
             fullBgValue = baseValue;
         } else {
-            if (gradientId) {
-                const preset = GRADIENT_PRESETS.find(g => g.id === gradientId);
+            // 根据当前模式选择对应的活动 ID
+            const activeId = isDefaultTheme ? gradientId : (solidId || gradientId);
+
+            if (activeId) {
+                const preset = GRADIENT_PRESETS.find(g => g.id === activeId);
                 if (preset) {
                     if (preset.id === 'theme-default') {
                         if (isDefaultTheme) {
@@ -324,14 +343,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     } else if (isDefaultTheme) {
                         baseValue = preset.gradient;
                     } else {
-                        baseValue = preset.solid;
+                        const isDarkTheme = theme === 'dark' || (followSystem && systemTheme === 'dark');
+                        baseValue = isDarkTheme && 'solidDark' in preset ? preset.solidDark : preset.solid;
                     }
 
-                    if ('blendMode' in preset && preset.blendMode) {
-                        blendMode = preset.blendMode;
+                    if ('blendMode' in preset && (preset as any).blendMode) {
+                        blendMode = (preset as any).blendMode;
                     }
                 }
             } else {
+                // 如果没有显式设置 ID，尝试使用默认逻辑
                 if (isDefaultTheme) {
                     baseValue = 'linear-gradient(180deg, #00020E 0%, #071633 25%, #3966AD 65%, #7e9ecb 100%)';
                 } else {
@@ -361,7 +382,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             backgroundTextureTileSize: textureTileSize,
             backgroundBlendMode: blendMode
         };
-    }, [wallpaper, gradientId, texture, isDefaultTheme, theme]);
+    }, [wallpaper, gradientId, solidId, texture, isDefaultTheme, theme, followSystem, systemTheme]);
 
     // 将主题应用到文档，并设置 CSS 变量以保持向后兼容
     useEffect(() => {
@@ -417,6 +438,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         wallpaper,
         wallpaperType,
         gradientId,
+        solidId,
         texture,
         wallpaperId,
         backgroundValue,
@@ -427,7 +449,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         dockPosition,
         iconSize,
         openInNewTab,
-    }), [theme, followSystem, wallpaper, wallpaperType, gradientId, texture, wallpaperId, backgroundValue, backgroundBaseValue, backgroundTextureValue, backgroundTextureTileSize, backgroundBlendMode, dockPosition, iconSize, openInNewTab]);
+    }), [theme, followSystem, wallpaper, wallpaperType, gradientId, solidId, texture, wallpaperId, backgroundValue, backgroundBaseValue, backgroundTextureValue, backgroundTextureTileSize, backgroundBlendMode, dockPosition, iconSize, openInNewTab]);
 
     const actionsValue: ThemeActionsContextType = useMemo(() => ({
         setTheme,
@@ -435,12 +457,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setWallpaper,
         uploadWallpaper,
         setGradientId,
+        setSolidId,
         setTexture,
         setWallpaperId,
         setDockPosition,
         setIconSize,
         setOpenInNewTab,
-    }), [setTheme, setFollowSystem, setWallpaper, uploadWallpaper, setGradientId, setTexture, setWallpaperId, setDockPosition, setIconSize, setOpenInNewTab]);
+    }), [setTheme, setFollowSystem, setWallpaper, uploadWallpaper, setGradientId, setSolidId, setTexture, setWallpaperId, setDockPosition, setIconSize, setOpenInNewTab]);
 
     return (
         <ThemeDataContext.Provider value={dataValue}>

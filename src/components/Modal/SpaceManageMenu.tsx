@@ -9,6 +9,7 @@ import trashIcon from '../../assets/icons/trash.svg';
 import pinIcon from '../../assets/icons/pin.svg';
 import importIcon from '../../assets/icons/import.svg';
 import exportIcon from '../../assets/icons/export.svg';
+import exportLargeIcon from '../../assets/icons/export-large.svg';
 import editIcon from '../../assets/icons/edit.svg';
 import styles from './SpaceManageMenu.module.css';
 
@@ -249,7 +250,7 @@ export function SpaceManageMenu({
                                 <span>{t.space.exportSpace}</span>
                             </button>
                             <button className={styles.menuItem} onClick={handleExportAllClick}>
-                                <span className={styles.icon} style={{ WebkitMaskImage: `url(${exportIcon})`, maskImage: `url(${exportIcon})` }} />
+                                <span className={styles.icon} style={{ WebkitMaskImage: `url(${exportLargeIcon})`, maskImage: `url(${exportLargeIcon})` }} />
                                 <span>{t.space.exportAllSpaces}</span>
                             </button>
                             {/* 隐藏的文件输入框 */}

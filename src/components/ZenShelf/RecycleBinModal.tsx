@@ -12,6 +12,29 @@ interface RecycleBinModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
+import { useThemeData } from '../../context/ThemeContext';
+
+// ============================================================================
+// 文字贴纸的主题感知颜色反转
+// ============================================================================
+const BLACK_COLOR = '#1C1C1E';
+const WHITE_COLOR = '#FFFFFF';
+
+/**
+ * 在深色主题下反转黑/白颜色，以获得更好的可读性
+ */
+const getThemeAwareColor = (color: string, theme: string): string => {
+    if (theme !== 'dark') return color;
+
+    const upperColor = color.toUpperCase();
+    if (upperColor === BLACK_COLOR.toUpperCase() || upperColor === '#1C1C1E') {
+        return WHITE_COLOR;
+    }
+    if (upperColor === WHITE_COLOR.toUpperCase() || upperColor === '#FFF') {
+        return BLACK_COLOR;
+    }
+    return color;
+};
 
 // 橡皮筋效果计算 - 超过最大值后阻力逐渐增加
 const rubberBand = (offset: number, maxOffset: number = 200): number => {
@@ -29,12 +52,12 @@ const rubberBand = (offset: number, maxOffset: number = 200): number => {
 // Sub-component for individual swipeable items
 const RecycleBinItem: React.FC<{
     sticker: any;
-    viewportScale: number;
     onRestore: (sticker: any) => void;
     onDelete: (item: any) => void;
     t: any;
     index: number;
-}> = ({ sticker, viewportScale, onRestore, onDelete, t, index }) => {
+}> = ({ sticker, onRestore, onDelete, t, index }) => {
+    const { theme } = useThemeData();
     const [offsetX, setOffsetX] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [isSpringBack, setIsSpringBack] = useState(false);
@@ -275,10 +298,9 @@ const RecycleBinItem: React.FC<{
                         <div
                             className={styles.textSticker}
                             style={{
-                                color: sticker.style?.color || '#000000',
-                                fontSize: `${(sticker.style?.fontSize || 40) * viewportScale}px`,
-                                textAlign: sticker.style?.textAlign || 'center',
-                                lineHeight: 0.95,
+                                color: getThemeAwareColor(sticker.style?.color || '#1C1C1E', theme),
+                                fontSize: sticker.style?.fontSize || 40,
+                                textAlign: sticker.style?.textAlign || 'left',
                             }}
                         >
                             {sticker.content}
@@ -305,19 +327,6 @@ export const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ isOpen, onClos
     const { t } = useLanguage();
     const [isClosing, setIsClosing] = useState(false);
 
-    // Replicate the scaling logic from ZenShelf to match sticker appearance
-    const REFERENCE_WIDTH = 1920;
-    const [viewportScale, setViewportScale] = useState(() => window.innerWidth / REFERENCE_WIDTH);
-
-    useEffect(() => {
-        const handleResize = () => {
-            setViewportScale(window.innerWidth / REFERENCE_WIDTH);
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    // 处理关闭 - 先播放退场动画
     const handleClose = useCallback(() => {
         setIsClosing(true);
         // 等待动画完成后真正关闭
@@ -376,7 +385,6 @@ export const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ isOpen, onClos
                             <RecycleBinItem
                                 key={sticker.id}
                                 sticker={sticker}
-                                viewportScale={viewportScale}
                                 onRestore={restoreSticker}
                                 onDelete={handlePermanentDelete}
                                 t={t}

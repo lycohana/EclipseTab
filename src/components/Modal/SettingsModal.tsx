@@ -126,6 +126,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
         uploadWallpaper,
         gradientId,
         setGradientId,
+        solidId,
+        setSolidId,
         texture,
         setTexture,
         dockPosition,
@@ -179,40 +181,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
 
     const handleThemeSelect = useCallback((selectedTheme: Theme) => {
         setTheme(selectedTheme);
-        // 选择默认主题时，将 gradientId 重置为主题默认值
-        if (selectedTheme === 'default') {
-            setGradientId('theme-default');
-        }
+        // 不再需要在 handleThemeSelect 中重置 gradientId，因为它现在是独立的
         if (followSystem) {
             setFollowSystem(false);
         }
-    }, [setTheme, setGradientId, followSystem, setFollowSystem]);
+    }, [setTheme, followSystem, setFollowSystem]);
 
     const handleToggleFollowSystem = useCallback(() => {
         setFollowSystem(!followSystem);
     }, [followSystem, setFollowSystem]);
 
     const handleGradientSelect = useCallback((id: string) => {
-        // 如果有壁纸，只需清除它并直接设置渐变
-        // 不需要特殊处理，因为视觉上的变化是从壁纸到颜色的
+        // 如果有壁纸，只需清除它
         if (wallpaper) {
             setWallpaper(null);
-            setGradientId(id);
-            return;
         }
 
-        // 如果点击相同的渐变（且没有壁纸），我们需要通过首先使用一个临时的不同值来强制 React 更新
-        if (gradientId === id) {
-            const tempId = id === 'theme-default' ? 'gradient-1' : 'theme-default';
-            setGradientId(tempId);
-            // 通过使用 requestAnimationFrame 强制进行同步更新
-            requestAnimationFrame(() => {
+        // 根据当前是否为默认主题，决定更新哪一个 ID
+        if (isDefaultTheme) {
+            if (gradientId === id) {
+                // 强制更新逻辑
+                setGradientId('theme-default');
+                requestAnimationFrame(() => setGradientId(id));
+            } else {
                 setGradientId(id);
-            });
+            }
         } else {
-            setGradientId(id);
+            setSolidId(id);
         }
-    }, [wallpaper, setWallpaper, gradientId, setGradientId]);
+    }, [wallpaper, setWallpaper, gradientId, setGradientId, setSolidId, isDefaultTheme]);
 
     const handleTextureSelect = useCallback((selectedTexture: Texture) => {
         setTexture(selectedTexture);
@@ -320,7 +317,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
                                         key={textureId}
                                         className={`${styles.textureOption} ${texture === textureId ? styles.textureOptionActive : ''}`}
                                         onClick={() => handleTextureSelect(textureId)}
-                                        title={pattern.name}
+                                        title={language === 'zh' ? pattern.nameZh : pattern.name}
                                     >
                                         <div className={styles.texturePreviewNone}>
                                             <img
@@ -354,14 +351,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
                             }
 
                             // 当使用壁纸时，不显示颜色选项的选中状态
-                            const isActive = !wallpaper && gradientId === preset.id;
+                            const currentActiveId = isDefaultTheme ? gradientId : (solidId || gradientId);
+                            const isActive = !wallpaper && currentActiveId === preset.id;
 
                             return (
                                 <button
                                     key={preset.id}
                                     className={`${styles.colorOption} ${isActive ? styles.colorOptionActive : ''}`}
                                     onClick={() => handleGradientSelect(preset.id)}
-                                    title={preset.name}
+                                    title={language === 'en' ? preset.nameEn : preset.name}
                                     style={{
                                         background: displayColor
                                     }}

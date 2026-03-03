@@ -34,6 +34,7 @@ interface AppConfig {
   iconSize: 'large' | 'small';
   texture: string;
   gradient: string | null;
+  solidGradient: string | null;
   openInNewTab: boolean;
 }
 
@@ -44,6 +45,7 @@ const DEFAULT_CONFIG: AppConfig = {
   iconSize: 'large',
   texture: 'point',
   gradient: null,
+  solidGradient: null,
   openInNewTab: true,
 };
 
@@ -146,6 +148,14 @@ export const storage = {
     const current = this.getConfig();
     const next = { ...current, ...patch };
     this.saveConfig(next);
+  },
+
+  getSolidGradient(): string | null {
+    return this.getConfig().solidGradient;
+  },
+
+  saveSolidGradient(solidGradient: string | null): void {
+    this.updateConfig({ solidGradient });
   },
 
   // ==========================================================================

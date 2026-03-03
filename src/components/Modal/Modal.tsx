@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { scaleFadeIn, scaleFadeOut } from '../../utils/animations';
 import styles from './Modal.module.css';
@@ -43,17 +43,27 @@ export const Modal: React.FC<ModalProps> = ({
     }
   }, [isOpen, isVisible]);
 
+  // 处理关闭动作的提取，以便在多个地方可以重用
+  const triggerCloseAnimation = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+
+    if (containerRef.current) {
+      scaleFadeOut(containerRef.current, 300, () => {
+        setIsVisible(false);
+      });
+    } else {
+      setIsVisible(false);
+    }
+  }, []);
+
   // 出场动画 - 由父组件设置 isOpen=false 触发
   useEffect(() => {
+    // 只有当内部状态可见，且外部要求关闭时，才播放退出动画
     if (!isOpen && isVisible && !isClosingRef.current) {
-      isClosingRef.current = true;
-      if (containerRef.current) {
-        scaleFadeOut(containerRef.current, 300, () => setIsVisible(false));
-      } else {
-        setIsVisible(false);
-      }
+      triggerCloseAnimation();
     }
-  }, [isOpen, isVisible]);
+  }, [isOpen, isVisible, triggerCloseAnimation]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -61,21 +71,23 @@ export const Modal: React.FC<ModalProps> = ({
     }
   };
 
-  // 处理带有动画的关闭
-  const handleClose = () => {
+  // 用户主动点击关闭（例如点击遮罩层或关闭按钮）
+  // 这种情况下，我们需要先触发 onClose() 通知父组件更改状态，然后由上面的 useEffect 来处理动画
+  // 或者是先播放动画，动画结束后触发 onClose()
+  const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
     isClosingRef.current = true;
 
     if (containerRef.current) {
       scaleFadeOut(containerRef.current, 300, () => {
         setIsVisible(false);
-        onClose();
+        onClose(); // 动画播放完毕后再通知父组件关闭
       });
     } else {
       setIsVisible(false);
-      onClose();
+      onClose(); // 无需动画直接关闭
     }
-  };
+  }, [onClose]);
 
   if (!isVisible) return null;
 

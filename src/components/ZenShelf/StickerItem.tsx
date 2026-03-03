@@ -598,13 +598,13 @@ const StickerItemComponent: React.FC<StickerItemProps> = ({
         isCreativeMode && styles.creativeHover,
     ].filter(Boolean).join(' ');
 
-    // 根据缩放比例和视口缩放比例计算实际图片宽度
+    // 根据缩放比例计算实际图片宽度（不受视口缩放影响，固定尺寸）
     const imageWidth = sticker.type === 'image'
-        ? Math.min(imageNaturalWidth, IMAGE_MAX_WIDTH) * (sticker.scale || 1) * viewportScale
+        ? Math.min(imageNaturalWidth, IMAGE_MAX_WIDTH) * (sticker.scale || 1)
         : undefined;
 
-    // 为文字贴纸计算缩放后的字体大小
-    const scaledFontSize = (sticker.style?.fontSize || 40) * viewportScale;
+    // 为文字贴纸计算字体大小（不受视口缩放影响，固定尺寸）
+    const scaledFontSize = (sticker.style?.fontSize || 40);
 
     return (
         <>

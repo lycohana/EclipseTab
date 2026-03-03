@@ -34,6 +34,8 @@ export const SearchEngineModal: React.FC<SearchEngineModalProps> = ({
 
   const handleSelect = useCallback((engine: SearchEngine) => {
     onSelect(engine);
+    // Allow the selection UI update to process, then close
+    // The Modal component handles its own isAnimating logic when isOpen becomes false
     onClose();
   }, [onSelect, onClose]);
 

@@ -970,12 +970,14 @@
 
 .recycleBinHeader {
     width: 100%;
-    margin: 0;
+    max-width: 960px;
+    margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
     color: var(--color-text-primary);
-    padding: 0 360px;
+    padding: 0 40px;
+    box-sizing: border-box;
 }
 
 .recycleBinTitle {
@@ -1047,7 +1049,11 @@
     flex-direction: column;
     align-items: flex-start;
     /* gap: 24px; Removed gap to allow margin collapse animation */
-    padding: 24px 360px;
+    padding: 24px 40px;
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+    box-sizing: border-box;
     overflow-y: auto;
 }
 

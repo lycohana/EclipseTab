@@ -46,7 +46,7 @@ export const TEXTURE_PATTERNS: Record<Exclude<TextureId, 'none'>, TexturePattern
     point: {
         id: 'point',
         name: 'Circle',
-        nameZh: 'Circle',
+        nameZh: '圆点',
         svgRaw: prepareSvg(circleSvgRaw),
         iconSize: 20,
         tileSize: 36,
@@ -56,7 +56,7 @@ export const TEXTURE_PATTERNS: Record<Exclude<TextureId, 'none'>, TexturePattern
     cross: {
         id: 'cross',
         name: 'Cross',
-        nameZh: 'Cross',
+        nameZh: '叉号',
         svgRaw: prepareSvg(crossSvgRaw),
         iconSize: 20,
         tileSize: 54,

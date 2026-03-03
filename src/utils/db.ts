@@ -1,7 +1,8 @@
 export const DB_NAME = 'EclipseTabDB';
 export const STORE_NAME = 'wallpapers';
 export const STICKER_IMAGES_STORE = 'sticker_images';
-const DB_VERSION = 2;
+export const FAVICONS_STORE = 'favicons'; // 新增 favicon 存储
+const DB_VERSION = 3; // 升级版本到 3
 
 export interface WallpaperItem {
     id: string;
@@ -14,6 +15,13 @@ export interface WallpaperItem {
 export interface StickerImageItem {
     id: string;
     data: Blob;
+}
+
+export interface FaviconItem {
+    domain: string; // 将作为主键使用
+    url: string; // 可以是 base64 data url 或 普通 url
+    isFallback: boolean;
+    lastUpdated?: number; // 记录更新时间
 }
 
 interface DBWrapper {
@@ -29,6 +37,9 @@ interface DBWrapper {
     getStickerImage: (id: string) => Promise<StickerImageItem | null>;
     removeStickerImage: (id: string) => Promise<void>;
     removeStickerImages: (ids: string[]) => Promise<void>;
+    // Favicon 操作
+    saveFavicon: (item: FaviconItem) => Promise<string>;
+    getFavicon: (domain: string) => Promise<FaviconItem | null>;
 }
 
 class IndexedDBWrapper implements DBWrapper {
@@ -64,6 +75,10 @@ class IndexedDBWrapper implements DBWrapper {
                         // v2: 创建 sticker_images store
                         if (!db.objectStoreNames.contains(STICKER_IMAGES_STORE)) {
                             db.createObjectStore(STICKER_IMAGES_STORE, { keyPath: 'id' });
+                        }
+                        // v3: 创建 favicons store
+                        if (!db.objectStoreNames.contains(FAVICONS_STORE)) {
+                            db.createObjectStore(FAVICONS_STORE, { keyPath: 'domain' });
                         }
                     };
                 } catch (e) {
@@ -273,6 +288,43 @@ class IndexedDBWrapper implements DBWrapper {
         } catch (error) {
             console.error('DB RemoveStickerImages Error:', error);
             throw error;
+        }
+    }
+    // ========================================================================
+    // Favicon 操作
+    // ========================================================================
+
+    async saveFavicon(item: FaviconItem): Promise<string> {
+        try {
+            const db = await this.getDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(FAVICONS_STORE, 'readwrite');
+                const store = transaction.objectStore(FAVICONS_STORE);
+                const request = store.put(item);
+
+                request.onsuccess = () => resolve(item.domain);
+                request.onerror = () => reject(request.error);
+            });
+        } catch (error) {
+            console.error('DB SaveFavicon Error:', error);
+            throw error;
+        }
+    }
+
+    async getFavicon(domain: string): Promise<FaviconItem | null> {
+        try {
+            const db = await this.getDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(FAVICONS_STORE, 'readonly');
+                const store = transaction.objectStore(FAVICONS_STORE);
+                const request = store.get(domain);
+
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error);
+            });
+        } catch (error) {
+            console.error('DB GetFavicon Error:', error);
+            return null;
         }
     }
 }

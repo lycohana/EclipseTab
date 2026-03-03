@@ -85,11 +85,18 @@ export const Background: React.FC = () => {
         };
     }, [backgroundBaseValue, wallpaperType]);
 
-    // 2. 处理纹理更改 (顺序：出 -> 入)
+    // 2. 处理纹理更改 (交叉淡入淡出)
     React.useEffect(() => {
         const layerId = getNextLayerId();
-        // 如果纹理为 null/none，我们只需淡出当前纹理
-        // 如果纹理是新的，我们先淡出旧的，然后淡入新的
+
+        // 如果纹理为 null/none，我们只需将其从状态中移除（或淡出）
+        if (!backgroundTextureValue) {
+            setTextureLayers(prev => prev.map(l => ({ ...l, visible: false })));
+            const cleanupTimer = setTimeout(() => {
+                setTextureLayers([]);
+            }, 300);
+            return () => clearTimeout(cleanupTimer);
+        }
 
         const newLayer = {
             id: layerId,
@@ -98,55 +105,28 @@ export const Background: React.FC = () => {
             visible: false
         };
 
-        // 检查是否有任何图层 (即使当前正在淡出)
-        // 这强制执行严格的顺序动画：旧的结束 -> 新的开始
-        const hasLayers = textureLayersRef.current.length > 0;
+        setTextureLayers(prev => {
+            // 保留最后一个活跃图层用于淡出
+            const activeLayers = prev.slice(-1);
+            return [...activeLayers, newLayer];
+        });
 
-        if (hasLayers) {
-            // 淡出当前图层
-            setTextureLayers(prev => prev.map(l => ({ ...l, visible: false })));
+        // 淡入新图层
+        const animTimer = setTimeout(() => {
+            setTextureLayers(prev => prev.map(l =>
+                l.id === layerId ? { ...l, visible: true } : l
+            ));
+        }, 50);
 
-            // 等待，然后显示新图层
-            const timer = setTimeout(() => {
-                // 如果有新纹理 (不为 null), 则添加它
-                if (backgroundTextureValue) {
-                    setTextureLayers([newLayer]);
-                    requestAnimationFrame(() => {
-                        setTextureLayers(prev => prev.map(l =>
-                            l.id === layerId ? { ...l, visible: true } : l
-                        ));
-                    });
-                } else {
-                    // 如果切换到 None，只需清除图层
-                    setTextureLayers([]);
-                }
-            }, 300);
+        // 清理旧图层
+        const cleanupTimer = setTimeout(() => {
+            setTextureLayers(prev => prev.filter(l => l.id === layerId));
+        }, 300);
 
-            return () => clearTimeout(timer);
-        } else {
-            // 没有可见纹理，如果存在则直接显示新纹理
-            if (backgroundTextureValue) {
-                setTextureLayers(prev => [...prev, newLayer]);
-
-                const animTimer = setTimeout(() => {
-                    setTextureLayers(prev => prev.map(l =>
-                        l.id === layerId ? { ...l, visible: true } : l
-                    ));
-                }, 50);
-
-                const cleanupTimer = setTimeout(() => {
-                    setTextureLayers(prev => prev.filter(l => l.id === layerId));
-                }, 300);
-
-                return () => {
-                    clearTimeout(animTimer);
-                    clearTimeout(cleanupTimer);
-                };
-            } else {
-                // 如果值为 null 且没有可见图层，确保为空
-                setTextureLayers([]);
-            }
-        }
+        return () => {
+            clearTimeout(animTimer);
+            clearTimeout(cleanupTimer);
+        };
     }, [backgroundTextureValue, backgroundTextureTileSize]);
 
     return (

@@ -109,9 +109,9 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
     // 字体大小更改时更新它
     useEffect(() => {
         if (inputRef.current) {
-            inputRef.current.style.fontSize = `${fontSize * viewportScale}px`;
+            inputRef.current.style.fontSize = `${fontSize}px`;
         }
-    }, [fontSize, viewportScale]);
+    }, [fontSize]);
 
     // 触发工具栏和输入框的出场动画
     const triggerExit = useCallback((callback: () => void, animateInput: boolean = true) => {
@@ -305,7 +305,7 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
                     style={{
                         color: getThemeAwareColor(textColor, theme),
                         textAlign: textAlign,
-                        fontSize: `${fontSize * viewportScale}px`,
+                        fontSize: `${fontSize}px`,
                     }}
                     onInput={handleInput}
                     onKeyDown={handleKeyDown}

@@ -70,6 +70,17 @@ function App() {
   const settingsAreaRef = useRef<HTMLDivElement>(null);
   const editorAreaRef = useRef<HTMLDivElement>(null);
 
+  // 跟踪哪些 Modal 已经被打开过，以便保持挂载从而播放退出动画
+  const mountedModals = useRef({
+    addEdit: false,
+    searchEngine: false,
+    settings: false,
+  });
+
+  if (isAddEditModalOpen) mountedModals.current.addEdit = true;
+  if (isSearchEngineModalOpen) mountedModals.current.searchEngine = true;
+  if (isSettingsModalOpen) mountedModals.current.settings = true;
+
   // ============================================================================
   // 性能优化: 使用 RAF 节流 + 状态变化检测，减少 mousemove 期间的重渲染
   // ============================================================================
@@ -271,7 +282,7 @@ function App() {
           />
         </Suspense>
       )}
-      {isAddEditModalOpen && (
+      {mountedModals.current.addEdit && (
         <Suspense fallback={null}>
           <AddEditModal
             isOpen={isAddEditModalOpen}
@@ -286,7 +297,7 @@ function App() {
           />
         </Suspense>
       )}
-      {isSearchEngineModalOpen && (
+      {mountedModals.current.searchEngine && (
         <Suspense fallback={null}>
           <SearchEngineModal
             isOpen={isSearchEngineModalOpen}
@@ -298,7 +309,7 @@ function App() {
           />
         </Suspense>
       )}
-      {isSettingsModalOpen && (
+      {mountedModals.current.settings && (
         <Suspense fallback={null}>
           <SettingsModal
             isOpen={isSettingsModalOpen}

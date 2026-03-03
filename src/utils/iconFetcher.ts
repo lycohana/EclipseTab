@@ -1,5 +1,6 @@
 import { getCachedIcon, setCachedIcon } from './iconCache';
 import { compressIcon } from './imageCompression';
+import { db } from './db';
 
 // ============================================================================
 // 请求去重: 跟踪进行中的请求，避免重复网络请求
@@ -10,33 +11,57 @@ const pendingRequests = new Map<string, Promise<IconResult>>();
 /**
  * 获取网站图标
  * 优先级：
- * 1. 缓存命中
- * 2. 进行中的请求 (去重)
- * 3. 自定义图标（已上传）
- * 4. 网站根目录的 favicon.ico
- * 5. Google Favicon 服务
- * 6. 生成备用 SVG
+ * 1. 内存缓存命中 (LRU)
+ * 2. IndexedDB 缓存命中
+ * 3. 进行中的请求 (去重)
+ * 4. 外部获取逻辑 (fetchIconInternal)
  */
 export const fetchIcon = async (url: string, minSize: number = 100): Promise<IconResult> => {
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname;
 
-    // 检查缓存
+    // 1. 检查内存缓存 (最快)
     const cached = getCachedIcon(domain);
     if (cached) {
       return cached;
     }
 
-    // 检查是否有进行中的请求 (请求去重)
+    // 2. 检查 IndexedDB 缓存 (持久化)
+    try {
+      const dbCached = await db.getFavicon(domain);
+      if (dbCached) {
+        const result = { url: dbCached.url, isFallback: dbCached.isFallback };
+        // 存入内存缓存供下次快速访问
+        setCachedIcon(domain, result);
+        return result;
+      }
+    } catch (dbError) {
+      console.warn('Failed to read from IndexedDB favicon cache:', dbError);
+    }
+
+    // 3. 检查是否有进行中的请求 (请求去重)
     const cacheKey = `${domain}:${minSize}`;
     const pending = pendingRequests.get(cacheKey);
     if (pending) {
       return pending;
     }
 
-    // 创建新请求并缓存 Promise
-    const fetchPromise = fetchIconInternal(url, domain, minSize);
+    // 4. 创建新请求并缓存 Promise
+    const fetchPromise = fetchIconInternal(url, domain, minSize).then(async (result) => {
+      // 获取成功后，存入 IndexedDB
+      try {
+        await db.saveFavicon({
+          domain,
+          url: result.url,
+          isFallback: result.isFallback,
+          lastUpdated: Date.now()
+        });
+      } catch (dbError) {
+        console.warn('Failed to save to IndexedDB favicon cache:', dbError);
+      }
+      return result;
+    });
     pendingRequests.set(cacheKey, fetchPromise);
 
     try {
