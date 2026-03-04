@@ -77,12 +77,12 @@ export function createTextStickerImage(sticker: Sticker): Promise<Blob | null> {
             return;
         }
 
-        // 匹配 CSS 样式: font-weight 900, line-height 0.9, Bricolage Grotesque
+        // 匹配 CSS 样式: font-weight 900, line-height 0.95, Bricolage Grotesque
         measureCtx.font = `900 ${BASE_FONT_SIZE}px "Bricolage Grotesque", sans-serif`;
 
         // 测量文本内容
         const lines = sticker.content.split('\n');
-        const lineHeight = BASE_FONT_SIZE * 0.9;
+        const lineHeight = BASE_FONT_SIZE * 0.95;
 
         // 寻找最大行宽
         let maxWidth = 0;
@@ -119,7 +119,7 @@ export function createTextStickerImage(sticker: Sticker): Promise<Blob | null> {
         // const finalPaddingY = Math.round(paddingY * scale); // 未使用的变量
 
         const finalStrokeWidth = Math.round(strokeWidth * scale);
-        const finalLineHeight = fontSize * 0.9;
+        const finalLineHeight = fontSize * 0.95;
 
         // Create canvas
         const canvas = document.createElement('canvas');

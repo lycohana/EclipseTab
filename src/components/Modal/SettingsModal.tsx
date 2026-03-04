@@ -177,8 +177,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
         }
     }, [isOpen, isVisible]);
 
-    if (!isVisible) return null;
-
     const handleThemeSelect = useCallback((selectedTheme: Theme) => {
         setTheme(selectedTheme);
         // 不再需要在 handleThemeSelect 中重置 gradientId，因为它现在是独立的
@@ -214,6 +212,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
     const handleTextureSelect = useCallback((selectedTexture: Texture) => {
         setTexture(selectedTexture);
     }, [setTexture]);
+
+    if (!isVisible) return null;
 
     const modalStyle: React.CSSProperties = {
         left: `${anchorPosition.x}px`,

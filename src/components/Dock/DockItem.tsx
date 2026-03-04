@@ -160,7 +160,7 @@ const DockItemComponent: React.FC<DockItemProps> = ({
             {item.items && item.items.slice(0, 4).map((subItem) => (
               <div key={subItem.id} className={styles.folderIconTile}>
                 {subItem.icon ? (
-                  <img src={subItem.icon} alt={subItem.name} loading="lazy" decoding="async" />
+                  <img src={subItem.icon} alt={subItem.name} />
                 ) : (
                   <div className={styles.fallbackIcon} />
                 )}
@@ -172,8 +172,6 @@ const DockItemComponent: React.FC<DockItemProps> = ({
             src={item.icon || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTYiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4yKSIvPjwvc3ZnPg=='}
             alt={item.name}
             className={styles.icon}
-            loading="lazy"
-            decoding="async"
           />
         )}
       </div>
