@@ -18,22 +18,53 @@ const ICON_COMPRESSION_QUALITY = 0.6;
 const STICKER_COMPRESSION_QUALITY = 0.85;
 
 // ============================================================================
-// 性能优化: 复用单个 Canvas 实例，避免每次压缩都创建 DOM 元素
-// 注意: 使用 HTMLCanvasElement 而非 OffscreenCanvas，因为需要同步的 toDataURL()
+// 性能优化: 预先创建 Web Worker 来处理图像压缩，防止阻塞主UI线程
 // ============================================================================
 
+let worker: Worker | null = null;
+const workerCallbacks = new Map<string, { resolve: (val: any) => void; reject: (err: any) => void }>();
+
+const getWorker = () => {
+    // 检查是否支持 Worker 和 OffscreenCanvas
+    if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined') {
+        return null;
+    }
+    if (!worker) {
+        worker = new Worker(new URL('./imageWorker.ts', import.meta.url), { type: 'module' });
+        worker.onmessage = (e: MessageEvent) => {
+            const { id, result, error } = e.data;
+            const callbacks = workerCallbacks.get(id);
+            if (callbacks) {
+                if (error) callbacks.reject(new Error(error));
+                else callbacks.resolve(result);
+                workerCallbacks.delete(id);
+            }
+        };
+    }
+    return worker;
+};
+
+function runInWorker<T>(type: string, payload: any): Promise<T> {
+    const activeWorker = getWorker();
+    if (!activeWorker) {
+        throw new Error('Web Worker not supported');
+    }
+    return new Promise((resolve, reject) => {
+        const id = Math.random().toString(36).substring(2, 9);
+        workerCallbacks.set(id, { resolve, reject });
+        activeWorker.postMessage({ id, type, payload });
+    });
+}
+
+// 保留 main-thread canvas 作为降级处理机制（Safari 16 之前版本可能不支持 OffscreenCanvas）
 let reusableIconCanvas: HTMLCanvasElement | null = null;
 let reusableIconCtx: CanvasRenderingContext2D | null = null;
 
-/**
- * 获取可复用的 Canvas
- */
 function getReusableIconCanvas(width: number, height: number): {
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
 } | null {
     try {
-        // 首次使用时创建 Canvas
         if (!reusableIconCanvas) {
             reusableIconCanvas = document.createElement('canvas');
             reusableIconCanvas.width = width;
@@ -43,15 +74,12 @@ function getReusableIconCanvas(width: number, height: number): {
 
         if (!reusableIconCtx) return null;
 
-        // 调整尺寸 (仅在需要时)
         if (reusableIconCanvas.width !== width || reusableIconCanvas.height !== height) {
             reusableIconCanvas.width = width;
             reusableIconCanvas.height = height;
         }
 
-        // 清空画布
         reusableIconCtx.clearRect(0, 0, width, height);
-
         return { canvas: reusableIconCanvas, ctx: reusableIconCtx };
     } catch {
         return null;
@@ -60,73 +88,64 @@ function getReusableIconCanvas(width: number, height: number): {
 
 /**
  * 压缩 Base64 图标到指定尺寸 (192x192)
- * 性能优化: 使用复用的 Canvas 实例
+ * 性能优化: 使用 Web Worker 以避免阻塞主线程，若不支持则降级到直接 Canvas 处理
  * @param dataUrl Base64 编码的图片
  * @returns 压缩后的 Base64 图片
  */
 export async function compressIcon(dataUrl: string): Promise<string> {
-    // 如果不是有效的 data URL，直接返回
     if (!dataUrl?.startsWith('data:image')) {
         return dataUrl;
     }
 
-    return new Promise((resolve, _reject) => {
-        const img = new Image();
-
-        img.onload = () => {
-            try {
-                // 计算目标尺寸（保持宽高比，最大边为 ICON_TARGET_SIZE）
-                let { width, height } = img;
-
-                // 如果图片已经小于目标尺寸，不需要压缩尺寸，但仍然转换为 WebP 以减小体积
-                if (width > ICON_TARGET_SIZE || height > ICON_TARGET_SIZE) {
-                    if (width > height) {
-                        height = Math.round((height * ICON_TARGET_SIZE) / width);
-                        width = ICON_TARGET_SIZE;
-                    } else {
-                        width = Math.round((width * ICON_TARGET_SIZE) / height);
-                        height = ICON_TARGET_SIZE;
+    try {
+        const result = await runInWorker<string>('compressIcon', dataUrl);
+        return result;
+    } catch (e) {
+        // Fallback to main thread
+        console.warn('Worker fallback used for compressIcon');
+        return new Promise((resolve, _reject) => {
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    let { width, height } = img;
+                    if (width > ICON_TARGET_SIZE || height > ICON_TARGET_SIZE) {
+                        if (width > height) {
+                            height = Math.round((height * ICON_TARGET_SIZE) / width);
+                            width = ICON_TARGET_SIZE;
+                        } else {
+                            width = Math.round((width * ICON_TARGET_SIZE) / height);
+                            height = ICON_TARGET_SIZE;
+                        }
                     }
-                }
 
-                const canvasData = getReusableIconCanvas(width, height);
-                if (!canvasData) {
+                    const canvasData = getReusableIconCanvas(width, height);
+                    if (!canvasData) {
+                        resolve(dataUrl);
+                        return;
+                    }
+
+                    const { canvas, ctx } = canvasData;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedDataUrl = canvas.toDataURL('image/webp', ICON_COMPRESSION_QUALITY);
+
+                    if (compressedDataUrl.length > dataUrl.length) {
+                        resolve(dataUrl);
+                    } else {
+                        resolve(compressedDataUrl);
+                    }
+                } catch (error) {
+                    console.error('Failed to compress icon in fallback:', error);
                     resolve(dataUrl);
-                    return;
                 }
-
-                const { canvas, ctx } = canvasData;
-
-                // 绘制图片
-                ctx.drawImage(img, 0, 0, width, height);
-
-                // 转换为 WebP 格式
-                const compressedDataUrl = canvas.toDataURL('image/webp', ICON_COMPRESSION_QUALITY);
-
-                // 如果压缩后更大（极少数情况），返回原图
-                if (compressedDataUrl.length > dataUrl.length) {
-                    resolve(dataUrl);
-                } else {
-                    resolve(compressedDataUrl);
-                }
-            } catch (error) {
-                console.error('Failed to compress icon:', error);
-                resolve(dataUrl); // 出错时返回原图
-            }
-        };
-
-        img.onerror = () => {
-            console.error('Failed to load image for compression');
-            resolve(dataUrl); // 加载失败时返回原图
-        };
-
-        img.src = dataUrl;
-    });
+            };
+            img.onerror = () => resolve(dataUrl);
+            img.src = dataUrl;
+        });
+    }
 }
 
 /**
  * 压缩贴纸图片到最大宽度 800px（保持比例）
- * 性能优化: 使用复用的 Canvas 实例
  * @param dataUrl Base64 编码的图片
  * @returns 压缩后的 Base64 图片
  */
@@ -135,106 +154,106 @@ export async function compressStickerImage(dataUrl: string): Promise<string> {
         return dataUrl;
     }
 
-    return new Promise((resolve) => {
-        const img = new Image();
+    try {
+        const result = await runInWorker<string>('compressStickerImage', dataUrl);
+        return result;
+    } catch (e) {
+        // Fallback to main thread
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    let { width, height } = img;
+                    if (width > STICKER_TARGET_WIDTH) {
+                        height = Math.round((height * STICKER_TARGET_WIDTH) / width);
+                        width = STICKER_TARGET_WIDTH;
+                    }
 
-        img.onload = () => {
-            try {
-                let { width, height } = img;
+                    const canvasData = getReusableIconCanvas(width, height);
+                    if (!canvasData) {
+                        resolve(dataUrl);
+                        return;
+                    }
 
-                // 只有宽度超过目标尺寸时才压缩
-                if (width > STICKER_TARGET_WIDTH) {
-                    height = Math.round((height * STICKER_TARGET_WIDTH) / width);
-                    width = STICKER_TARGET_WIDTH;
-                }
+                    const { canvas, ctx } = canvasData;
+                    ctx.drawImage(img, 0, 0, width, height);
 
-                const canvasData = getReusableIconCanvas(width, height);
-                if (!canvasData) {
+                    const compressedDataUrl = canvas.toDataURL('image/webp', STICKER_COMPRESSION_QUALITY);
+
+                    if (compressedDataUrl.length > dataUrl.length) {
+                        resolve(dataUrl);
+                    } else {
+                        resolve(compressedDataUrl);
+                    }
+                } catch (error) {
+                    console.error('Failed to compress sticker image:', error);
                     resolve(dataUrl);
-                    return;
                 }
-
-                const { canvas, ctx } = canvasData;
-                ctx.drawImage(img, 0, 0, width, height);
-
-                const compressedDataUrl = canvas.toDataURL('image/webp', STICKER_COMPRESSION_QUALITY);
-
-                if (compressedDataUrl.length > dataUrl.length) {
-                    resolve(dataUrl);
-                } else {
-                    resolve(compressedDataUrl);
-                }
-            } catch (error) {
-                console.error('Failed to compress sticker image:', error);
-                resolve(dataUrl);
-            }
-        };
-
-        img.onerror = () => {
-            console.error('Failed to load image for sticker compression');
-            resolve(dataUrl);
-        };
-
-        img.src = dataUrl;
-    });
+            };
+            img.onerror = () => resolve(dataUrl);
+            img.src = dataUrl;
+        });
+    }
 }
 
 /**
- * 压缩贴纸图片并直接返回 Blob（用于 IndexedDB 存储）
+ * 压缩贴纸图片并直接返回 Blob
  * @param file 图片 File 或 Blob
  * @returns 压缩后的 Blob
  */
 export async function compressStickerImageToBlob(file: File | Blob): Promise<Blob> {
-    return new Promise((resolve) => {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
+    try {
+        const result = await runInWorker<Blob>('compressStickerImageToBlob', file);
+        return result;
+    } catch (e) {
+        // Fallback to main thread
+        console.warn('Worker fallback used for compressStickerImageToBlob');
+        return new Promise((resolve) => {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
 
-        img.onload = () => {
-            URL.revokeObjectURL(url);
-            try {
-                let { width, height } = img;
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                try {
+                    let { width, height } = img;
+                    if (width > STICKER_TARGET_WIDTH) {
+                        height = Math.round((height * STICKER_TARGET_WIDTH) / width);
+                        width = STICKER_TARGET_WIDTH;
+                    }
 
-                if (width > STICKER_TARGET_WIDTH) {
-                    height = Math.round((height * STICKER_TARGET_WIDTH) / width);
-                    width = STICKER_TARGET_WIDTH;
-                }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        resolve(file);
+                        return;
+                    }
 
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob && blob.size < file.size) {
+                                resolve(blob);
+                            } else {
+                                resolve(file);
+                            }
+                        },
+                        'image/webp',
+                        STICKER_COMPRESSION_QUALITY
+                    );
+                } catch (error) {
                     resolve(file);
-                    return;
                 }
-
-                ctx.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob && blob.size < file.size) {
-                            resolve(blob);
-                        } else {
-                            resolve(file);
-                        }
-                    },
-                    'image/webp',
-                    STICKER_COMPRESSION_QUALITY
-                );
-            } catch (error) {
-                console.error('Failed to compress sticker image to blob:', error);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
                 resolve(file);
-            }
-        };
-
-        img.onerror = () => {
-            URL.revokeObjectURL(url);
-            console.error('Failed to load image for sticker compression');
-            resolve(file);
-        };
-
-        img.src = url;
-    });
+            };
+            img.src = url;
+        });
+    }
 }
 
 /**
