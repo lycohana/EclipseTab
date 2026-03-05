@@ -68,11 +68,18 @@ type ThemeContextType = ThemeDataContextType & ThemeActionsContextType;
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB 图片限制
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500MB 视频限制
 
+const lightnessCache = new Map<string, boolean>();
+
 /**
  * 判断背景颜色/渐变是浅色还是深色
  * 如果背景是浅色（需要深色文字），返回 true
  */
 const isBackgroundLight = (backgroundValue: string): boolean => {
+    // 检查缓存
+    if (lightnessCache.has(backgroundValue)) {
+        return lightnessCache.get(backgroundValue)!;
+    }
+
     // 提取实际的底色层（跳过可能存在的纹理层）
     // 背景值可能是 "url(data:...), #ffffff" 或 "url(blob:...), #ffffff"
     const layers = backgroundValue.split(',').map(l => l.trim());
@@ -130,7 +137,16 @@ const isBackgroundLight = (backgroundValue: string): boolean => {
     // 这有助于检测淡入浅色的渐变，确保在浅色部分的可读性
     const score = (averageLuminance + maxLuminance) / 2;
 
-    return score > 0.4;
+    const result = score > 0.4;
+
+    // 防止缓存过大
+    if (lightnessCache.size > 50) {
+        const firstKey = lightnessCache.keys().next().value;
+        if (firstKey) lightnessCache.delete(firstKey);
+    }
+    lightnessCache.set(backgroundValue, result);
+
+    return result;
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -392,8 +408,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         root.removeAttribute('data-texture');
 
         // 仅对默认主题检测背景亮度
-        if (isDefaultTheme && backgroundValue) {
-            const isLight = isBackgroundLight(backgroundValue);
+        if (isDefaultTheme && backgroundBaseValue) {
+            const isLight = isBackgroundLight(backgroundBaseValue);
             root.setAttribute('data-background-brightness', isLight ? 'light' : 'dark');
         } else {
             root.removeAttribute('data-background-brightness');
@@ -427,7 +443,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         root.style.setProperty('--icon-size', iconSize === 'small' ? '52px' : '64px');
         // 动态调整图标圆角
         root.style.setProperty('--icon-border-radius', iconSize === 'small' ? '12px' : '16px');
-    }, [backgroundValue, backgroundBlendMode, isDefaultTheme, iconSize, texture, wallpaper]);
+    }, [backgroundValue, backgroundBaseValue, backgroundBlendMode, isDefaultTheme, iconSize, texture, wallpaper]);
 
     // ========================================================================
     // 性能优化: 分离 data 和 actions context values

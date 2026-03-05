@@ -62,7 +62,6 @@ const DockDragContext = createContext<DockDragContextType | undefined>(undefined
 
 interface DockContextType extends DockDataContextType, DockUIContextType, DockDragContextType {
     handleItemClick: (item: DockItem, rect?: DOMRect) => void;
-    handleItemEdit: (item: DockItem, rect?: DOMRect) => void;
     handleHoverOpenFolder: (item: DockItem, folder: DockItem) => void;
     openFolder: DockItem | undefined;
 }
@@ -96,13 +95,19 @@ export const DockProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (action) => {
             setDockItemsInternal((prev) => {
                 const newItems = typeof action === 'function' ? action(prev) : action;
-                // 同步回 SpacesContext（异步避免渲染循环）
-                setTimeout(() => updateCurrentSpaceApps(newItems), 0);
+                // 同步回 SpacesContext
+                updateCurrentSpaceApps(newItems);
                 return newItems;
             });
         },
         [updateCurrentSpaceApps]
     );
+
+    // 存储 openFolderId 的 ref 用于 handleItemDelete 以减少依赖
+    const openFolderIdRef = React.useRef(openFolderId);
+    useEffect(() => {
+        openFolderIdRef.current = openFolderId;
+    }, [openFolderId]);
 
     // 初始化: 只在首次安装时加载默认常用网站
     // 注意：这个 ref 确保默认数据只加载一次，新建空间不会自动填充
@@ -141,9 +146,7 @@ export const DockProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setDockItems(defaults);
 
             // 异步获取默认项目的图标
-            const fetchAllIcons = async () => {
-                let isMounted = true;
-
+            const fetchAllIcons = async (isMountedRef: React.MutableRefObject<boolean>) => {
                 type IconUpdateResult =
                     | { id: string; icon: string; isFolder?: undefined; subItems?: undefined }
                     | { id: string; isFolder: true; subItems: { id: string; icon: string }[]; icon?: undefined }
@@ -188,7 +191,7 @@ export const DockProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // 过滤有效结果
                 const updates = iconResults.filter((r): r is NonNullable<IconUpdateResult> => r !== null);
 
-                if (!isMounted) return;
+                if (!isMountedRef.current) return;
 
                 // 安全更新: 仅更新图标，保留用户可能已做的操作（如排序、删除）
                 setDockItems(prev => {
@@ -214,13 +217,14 @@ export const DockProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         return item;
                     });
                 });
-
-                return () => { isMounted = false; };
             };
 
-            fetchAllIcons();
-            // 注意：useEffect 的 cleanup 实际上不能直接处理 async 函数内部的变量
-            // 所以我们在 fetchAllIcons 内部处理 mount 状态，或者使用 ref 跟踪 mount 状态
+            const isMountedRef = { current: true };
+            fetchAllIcons(isMountedRef);
+
+            return () => {
+                isMountedRef.current = false;
+            };
         }
 
         // 搜索引擎仍使用独立存储
@@ -288,11 +292,11 @@ export const DockProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const newItems = prev.filter((i) => i.id !== item.id);
                 return newItems;
             });
-            if (openFolderId === item.id) {
+            if (openFolderIdRef.current === item.id) {
                 setOpenFolderIdState(null);
             }
         }
-    }, [openFolderId]);
+    }, []);
 
     const handleItemSave = useCallback((data: Partial<DockItem>, editingItem: DockItem | null) => {
         if (editingItem) {
@@ -617,10 +621,6 @@ export const useDock = (): DockContextType => {
         }
     }, [uiContext, openInNewTab]);
 
-    const handleItemEdit = useCallback((_item: DockItem, _rect?: DOMRect) => {
-        // 这个函数在 App 中处理
-    }, []);
-
     const handleHoverOpenFolder = useCallback((_item: DockItem, folder: DockItem) => {
         if (folder.type === 'folder') {
             uiContext.setOpenFolderId(folder.id);
@@ -637,7 +637,6 @@ export const useDock = (): DockContextType => {
         ...uiContext,
         ...dragContext,
         handleItemClick,
-        handleItemEdit,
         handleHoverOpenFolder,
         openFolder,
     };

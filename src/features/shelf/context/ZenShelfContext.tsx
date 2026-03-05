@@ -50,25 +50,41 @@ export const ZenShelfProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [deletedStickers, setDeletedStickers] = useState<Sticker[]>(() => storage.getDeletedStickers());
     const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
 
-    // 防抖保存 ref
-    const saveTimeoutRef = useRef<number>();
+    // 防抖保存 refs
+    const stickersSaveTimeoutRef = useRef<number>();
+    const deletedStickersSaveTimeoutRef = useRef<number>();
 
     // 持久化：stickers 变化时防抖保存到 localStorage
     useEffect(() => {
-        if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
+        if (stickersSaveTimeoutRef.current) {
+            clearTimeout(stickersSaveTimeoutRef.current);
         }
-        saveTimeoutRef.current = window.setTimeout(() => {
+        stickersSaveTimeoutRef.current = window.setTimeout(() => {
             storage.saveStickers(stickers);
+        }, SAVE_DEBOUNCE_MS);
+
+        return () => {
+            if (stickersSaveTimeoutRef.current) {
+                clearTimeout(stickersSaveTimeoutRef.current);
+            }
+        };
+    }, [stickers]);
+
+    // 持久化：deletedStickers 变化时防抖保存到 localStorage
+    useEffect(() => {
+        if (deletedStickersSaveTimeoutRef.current) {
+            clearTimeout(deletedStickersSaveTimeoutRef.current);
+        }
+        deletedStickersSaveTimeoutRef.current = window.setTimeout(() => {
             storage.saveDeletedStickers(deletedStickers);
         }, SAVE_DEBOUNCE_MS);
 
         return () => {
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
+            if (deletedStickersSaveTimeoutRef.current) {
+                clearTimeout(deletedStickersSaveTimeoutRef.current);
             }
         };
-    }, [stickers, deletedStickers]);
+    }, [deletedStickers]);
 
     // ========================================================================
     // 数据迁移：将旧的 base64 图片贴纸迁移到 IndexedDB
@@ -149,32 +165,34 @@ export const ZenShelfProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, []);
 
     const deleteSticker = useCallback((id: string) => {
-        const stickerToDelete = stickers.find(s => s.id === id);
+        setStickers(prev => {
+            const stickerToDelete = prev.find(s => s.id === id);
 
-        setStickers(prev => prev.filter(sticker => sticker.id !== id));
-
-        if (stickerToDelete) {
-            setDeletedStickers(prev => {
-                const newDeleted = [stickerToDelete, ...prev];
-                // Limit to 30 items
-                if (newDeleted.length > 30) {
-                    // 清理被截断的贴纸的 IndexedDB 图片数据
-                    const truncated = newDeleted.slice(30);
-                    const imageIds = truncated
-                        .filter(s => s.type === 'image' && !s.content.startsWith('data:'))
-                        .map(s => s.content);
-                    if (imageIds.length > 0) {
-                        db.removeStickerImages(imageIds).catch(console.error);
+            if (stickerToDelete) {
+                setDeletedStickers(prevDeleted => {
+                    const newDeleted = [stickerToDelete, ...prevDeleted];
+                    // Limit to 30 items
+                    if (newDeleted.length > 30) {
+                        // 清理被截断的贴纸的 IndexedDB 图片数据
+                        const truncated = newDeleted.slice(30);
+                        const imageIds = truncated
+                            .filter(s => s.type === 'image' && !s.content.startsWith('data:'))
+                            .map(s => s.content);
+                        if (imageIds.length > 0) {
+                            db.removeStickerImages(imageIds).catch(console.error);
+                        }
+                        return newDeleted.slice(0, 30);
                     }
-                    return newDeleted.slice(0, 30);
-                }
-                return newDeleted;
-            });
-        }
+                    return newDeleted;
+                });
+            }
+
+            return prev.filter(sticker => sticker.id !== id);
+        });
 
         // 如果删除的是选中的贴纸，取消选中
         setSelectedStickerId(prev => prev === id ? null : prev);
-    }, [stickers]);
+    }, []);
 
     const restoreSticker = useCallback((stickerToRestore: Sticker) => {
         // Remove from deleted

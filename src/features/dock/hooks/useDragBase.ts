@@ -7,13 +7,13 @@ import { DockItem } from '@/shared/types';
 import {
     BaseDragState,
     createInitialDragState,
-    resetDragState,
     calculateDistance,
     toggleDraggingClass,
     LayoutItem,
     Position,
 } from '@/shared/utils/dragMath';
 import { onReturnAnimationComplete } from '@/features/dock/utils/animationUtils';
+import { DRAG_THRESHOLD } from '@/shared/constants/layout';
 
 
 /**
@@ -75,7 +75,7 @@ export const createFolderDragState = (): FolderDragState => {
  * 重置 Dock 拖拽状态
  */
 export const resetDockDragState = (): DockDragState => {
-    return resetDragState<DockDragState>({
+    return createInitialDragState<DockDragState>({
         targetAction: null,
         targetActionData: null,
     });
@@ -85,7 +85,7 @@ export const resetDockDragState = (): DockDragState => {
  * 重置文件夹拖拽状态
  */
 export const resetFolderDragState = (): FolderDragState => {
-    return resetDragState<FolderDragState>({
+    return createInitialDragState<FolderDragState>({
         targetAction: null,
         targetActionData: null,
     });
@@ -247,7 +247,7 @@ export const useDragBase = <T extends BaseDragState>(
         onThresholdExceeded: () => void
     ): boolean => {
         const dist = calculateDistance(e.clientX, e.clientY, startX, startY);
-        if (dist > 8) {
+        if (dist > DRAG_THRESHOLD) {
             hasMovedRef.current = true;
             onThresholdExceeded();
             return true;
@@ -321,19 +321,22 @@ export const useDragBase = <T extends BaseDragState>(
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && dragState.isDragging) {
                 // 取消拖拽
-                // 首先清理监听器
+                // 首先清理阈值监听器
                 if (thresholdListenerRef.current) {
                     window.removeEventListener('mousemove', thresholdListenerRef.current);
                     thresholdListenerRef.current = null;
                 }
-                // Rely on parent hook to clean up mousemove/mouseup listeners via references, 
-                // but since we don't track them centrally in that way here (passed in via creation),
-                // we trigger a state reset which should be handled by the parent effect logic 
-                // OR we can't easily clean specific listeners without knowing them.
 
-                // 策略：直接重置状态。父级监听器可能会再触发一次，但会看到 !isDragging。
-                // 更好的策略：调度一个自定义事件或类似的？ 
-                // 最简单：直接重置状态。
+                // 为了确保所有的外部监听器都能被恰当地清理
+                // 这里我们触发一个自定义事件来模拟 mouseup，或者调度外部提供的方法
+                // 由于目前架构是通过参数传递 handler 的，我们在组件里直接抛出一个事件更通用
+                const escEvent = new MouseEvent('mouseup', {
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: dragState.currentPosition.x,
+                    clientY: dragState.currentPosition.y
+                });
+                window.dispatchEvent(escEvent);
 
                 setDragState(options.resetState());
                 setPlaceholderIndex(null);

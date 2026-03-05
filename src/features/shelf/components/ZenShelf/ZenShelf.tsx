@@ -24,8 +24,21 @@ interface ZenShelfProps {
     onOpenSettings?: (position: { x: number; y: number }) => void;
 }
 
+// UI 元素选择器 - 右键这些区域不会触发上下文菜单
+const UI_SELECTORS = [
+    '[data-dock-container]',
+    '.dock',
+    'header',
+    '[class*="Searcher"]',
+    '[class*="Modal"]',
+    '[class*="Settings"]',
+    '[class*="Editor"]',
+    '[class*="FolderView"]',
+    '[class*="textInputPopup"]',
+    '[class*="contextMenu"]',
+].join(', ');
+
 export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
-    const canvasRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { stickers, selectedStickerId, addSticker, updateSticker, deleteSticker, selectSticker, bringToTop } = useZenShelf();
     const { isEditMode, setIsEditMode } = useDockUI();
@@ -68,20 +81,6 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
     }, []);
 
 
-
-    // UI 元素选择器 - 右键这些区域不会触发上下文菜单
-    const UI_SELECTORS = [
-        '[data-dock-container]',
-        '.dock',
-        'header',
-        '[class*="Searcher"]',
-        '[class*="Modal"]',
-        '[class*="Settings"]',
-        '[class*="Editor"]',
-        '[class*="FolderView"]',
-        '[class*="textInputPopup"]',
-        '[class*="contextMenu"]',
-    ].join(', ');
 
     // 上下文菜单的全局右键处理程序
     useEffect(() => {
@@ -296,7 +295,6 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
 
     return (
         <div
-            ref={canvasRef}
             className={`${styles.canvas} ${isEditMode ? styles.creativeMode : ''} ${isAnyDragging ? styles.dragging : ''}`}
         >
             {stickers
@@ -354,98 +352,96 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
             />
 
             {/* 上下文菜单 */}
-            {contextMenu && (
-                <ContextMenu
-                    x={contextMenu.x}
-                    y={contextMenu.y}
-                    type={contextMenu.type}
-                    stickerId={contextMenu.stickerId}
-                    isImageSticker={(() => {
-                        const sticker = stickers.find(s => s.id === contextMenu.stickerId);
-                        return sticker?.type === 'image';
-                    })()}
-                    onClose={() => setContextMenu(null)}
-                    onAddSticker={() => {
-                        setTextInputPos({ x: contextMenu.x, y: contextMenu.y });
-                    }}
-                    onUploadImage={() => {
-                        fileInputRef.current?.click();
-                    }}
-                    onToggleEditMode={() => {
-                        setIsEditMode(!isEditMode);
-                    }}
-                    isEditMode={isEditMode}
-                    onEditSticker={() => {
-                        const sticker = stickers.find(s => s.id === contextMenu.stickerId);
-                        if (sticker) {
-                            handleEditSticker(sticker);
-                        }
-                    }}
-                    onDeleteSticker={() => {
-                        if (contextMenu.stickerId) {
-                            deleteSticker(contextMenu.stickerId);
-                        }
-                    }}
-                    onCopyImage={async () => {
-                        const sticker = stickers.find(s => s.id === contextMenu.stickerId);
-                        if (sticker && sticker.type === 'image') {
-                            try {
-                                // 从 IndexedDB 获取图片 Blob
-                                const item = await db.getStickerImage(sticker.content);
-                                if (item) {
-                                    await copyBlobToClipboard(item.data);
-                                }
-                            } catch (error) {
-                                console.error('Failed to copy image:', error);
+            {contextMenu && (() => {
+                const activeContextMenuSticker = contextMenu.stickerId
+                    ? stickers.find(s => s.id === contextMenu.stickerId)
+                    : null;
+
+                return (
+                    <ContextMenu
+                        x={contextMenu.x}
+                        y={contextMenu.y}
+                        type={contextMenu.type}
+                        stickerId={contextMenu.stickerId}
+                        isImageSticker={activeContextMenuSticker?.type === 'image'}
+                        onClose={() => setContextMenu(null)}
+                        onAddSticker={() => {
+                            setTextInputPos({ x: contextMenu.x, y: contextMenu.y });
+                        }}
+                        onUploadImage={() => {
+                            fileInputRef.current?.click();
+                        }}
+                        onToggleEditMode={() => {
+                            setIsEditMode(!isEditMode);
+                        }}
+                        isEditMode={isEditMode}
+                        onEditSticker={() => {
+                            if (activeContextMenuSticker) {
+                                handleEditSticker(activeContextMenuSticker);
                             }
-                        }
-                    }}
-                    onExportImage={async () => {
-                        const sticker = stickers.find(s => s.id === contextMenu.stickerId);
-                        if (sticker && sticker.type === 'text') {
-                            try {
-                                const blob = await createTextStickerImage(sticker);
-                                if (blob) {
-                                    downloadBlob(blob, `sticker-${Date.now()}.png`);
-                                }
-                            } catch (error) {
-                                console.error('Failed to export sticker:', error);
+                        }}
+                        onDeleteSticker={() => {
+                            if (contextMenu.stickerId) {
+                                deleteSticker(contextMenu.stickerId);
                             }
-                        }
-                    }}
-                    onCopyText={() => {
-                        const sticker = stickers.find(s => s.id === contextMenu.stickerId);
-                        if (sticker && sticker.type === 'text') {
-                            navigator.clipboard.writeText(sticker.content);
-                        }
-                    }}
-                    onExportImageSticker={async () => {
-                        const sticker = stickers.find(s => s.id === contextMenu.stickerId);
-                        if (sticker && sticker.type === 'image') {
-                            try {
-                                // 从 IndexedDB 加载图片后导出
-                                const item = await db.getStickerImage(sticker.content);
-                                if (item) {
-                                    const blobUrl = URL.createObjectURL(item.data);
-                                    const stickerWithUrl = { ...sticker, content: blobUrl };
-                                    const blob = await createImageStickerImage(stickerWithUrl);
-                                    URL.revokeObjectURL(blobUrl);
+                        }}
+                        onCopyImage={async () => {
+                            if (activeContextMenuSticker && activeContextMenuSticker.type === 'image') {
+                                try {
+                                    // 从 IndexedDB 获取图片 Blob
+                                    const item = await db.getStickerImage(activeContextMenuSticker.content);
+                                    if (item) {
+                                        await copyBlobToClipboard(item.data);
+                                    }
+                                } catch (error) {
+                                    console.error('Failed to copy image:', error);
+                                }
+                            }
+                        }}
+                        onExportImage={async () => {
+                            if (activeContextMenuSticker && activeContextMenuSticker.type === 'text') {
+                                try {
+                                    const blob = await createTextStickerImage(activeContextMenuSticker);
                                     if (blob) {
                                         downloadBlob(blob, `sticker-${Date.now()}.png`);
                                     }
+                                } catch (error) {
+                                    console.error('Failed to export sticker:', error);
                                 }
-                            } catch (error) {
-                                console.error('Failed to export image sticker:', error);
                             }
-                        }
-                    }}
-                    onOpenSettings={() => {
-                        if (contextMenu) {
-                            onOpenSettings?.({ x: contextMenu.x, y: contextMenu.y });
-                        }
-                    }}
-                />
-            )}
+                        }}
+                        onCopyText={() => {
+                            if (activeContextMenuSticker && activeContextMenuSticker.type === 'text') {
+                                navigator.clipboard.writeText(activeContextMenuSticker.content);
+                            }
+                        }}
+                        onExportImageSticker={async () => {
+                            if (activeContextMenuSticker && activeContextMenuSticker.type === 'image') {
+                                try {
+                                    // 从 IndexedDB 加载图片后导出
+                                    const item = await db.getStickerImage(activeContextMenuSticker.content);
+                                    if (item) {
+                                        const blobUrl = URL.createObjectURL(item.data);
+                                        const stickerWithUrl = { ...activeContextMenuSticker, content: blobUrl };
+                                        const blob = await createImageStickerImage(stickerWithUrl);
+                                        URL.revokeObjectURL(blobUrl);
+                                        if (blob) {
+                                            downloadBlob(blob, `sticker-${Date.now()}.png`);
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error('Failed to export image sticker:', error);
+                                }
+                            }
+                        }}
+                        onOpenSettings={() => {
+                            if (contextMenu) {
+                                onOpenSettings?.({ x: contextMenu.x, y: contextMenu.y });
+                            }
+                        }}
+                    />
+                );
+            })()}
 
             {/* 用于图片上传的隐藏文件输入框 */}
             <input

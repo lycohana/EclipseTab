@@ -38,6 +38,9 @@ interface UseDragAndDropOptions {
     hasFolderPlaceholderActive?: () => boolean;
 }
 
+// 模块级拖拽策略常量
+const horizontalStrategy = createHorizontalStrategy();
+
 export const useDragAndDrop = ({
     items,
     isEditMode,
@@ -100,8 +103,8 @@ export const useDragAndDrop = ({
         performHapticFeedback,
     });
 
-    // 创建拖拽策略
-    const strategy = useMemo(() => createHorizontalStrategy(), []);
+    // 使用模块级拖拽策略
+    const strategy = horizontalStrategy;
 
     const cachedDockRectRef = useRef<DOMRect | null>(null);
     const lastMousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });

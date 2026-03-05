@@ -1,4 +1,4 @@
-import { DockItem, SearchEngine, SpacesState, createDefaultSpacesState } from '@/shared/types';
+import { DockItem, SearchEngine, SpacesState, createDefaultSpacesState, Sticker } from '@/shared/types';
 
 const STORAGE_KEYS = {
   DOCK_ITEMS: 'EclipseTab_dockItems',
@@ -59,8 +59,8 @@ interface CacheEntry<T> {
 
 const memoryCache = {
   spaces: null as CacheEntry<SpacesState> | null,
-  stickers: null as CacheEntry<import('../types').Sticker[]> | null,
-  deletedStickers: null as CacheEntry<import('../types').Sticker[]> | null,
+  stickers: null as CacheEntry<Sticker[]> | null,
+  deletedStickers: null as CacheEntry<Sticker[]> | null,
   config: null as CacheEntry<AppConfig> | null,
 };
 
@@ -326,6 +326,7 @@ export const storage = {
   clearSpaces(): void {
     try {
       localStorage.removeItem(STORAGE_KEYS.SPACES);
+      memoryCache.spaces = null;
     } catch (error) {
       console.error('Failed to clear spaces:', error);
     }
@@ -335,7 +336,7 @@ export const storage = {
   // Zen Shelf Stickers
   // ==========================================================================
 
-  getStickers(): import('../types').Sticker[] {
+  getStickers(): Sticker[] {
     try {
       const cached = getCached(STORAGE_KEYS.STICKERS, memoryCache.stickers);
       if (cached) return cached;
@@ -353,7 +354,7 @@ export const storage = {
     }
   },
 
-  saveStickers(stickers: import('../types').Sticker[]): void {
+  saveStickers(stickers: Sticker[]): void {
     try {
       const json = JSON.stringify(stickers);
       localStorage.setItem(STORAGE_KEYS.STICKERS, json);
@@ -363,7 +364,7 @@ export const storage = {
     }
   },
 
-  getDeletedStickers(): import('../types').Sticker[] {
+  getDeletedStickers(): Sticker[] {
     try {
       const cached = getCached(STORAGE_KEYS.DELETED_STICKERS, memoryCache.deletedStickers);
       if (cached) return cached;
@@ -381,7 +382,7 @@ export const storage = {
     }
   },
 
-  saveDeletedStickers(stickers: import('../types').Sticker[]): void {
+  saveDeletedStickers(stickers: Sticker[]): void {
     try {
       const json = JSON.stringify(stickers);
       localStorage.setItem(STORAGE_KEYS.DELETED_STICKERS, json);

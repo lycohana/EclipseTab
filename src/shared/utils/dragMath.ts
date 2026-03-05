@@ -134,9 +134,6 @@ export const isPointInRect = (
     y <= rect.bottom + buffer
 );
 
-/** 点是否在矩形内 — 别名，与旧 dragDetection 兼容 */
-export const isMouseOverRect = isPointInRect;
-
 // ============================================================================
 // DOM 区域检测
 // ============================================================================
@@ -369,11 +366,6 @@ export const createInitialDragState = <T extends BaseDragState>(
     targetPosition: null,
     ...additional,
 } as T);
-
-/** 重置拖拽状态 */
-export const resetDragState = <T extends BaseDragState>(
-    additional: Omit<T, keyof BaseDragState>
-): T => createInitialDragState(additional);
 
 // ============================================================================
 // 数组工具

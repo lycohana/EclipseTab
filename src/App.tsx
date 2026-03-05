@@ -57,7 +57,7 @@ function App() {
   const [isSearchEngineModalOpen, setIsSearchEngineModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [searchEngineAnchor, setSearchEngineAnchor] = useState<DOMRect | null>(null);
-  const [settingsAnchor, setSettingsAnchor] = useState<DOMRect | null>(null);
+  const [settingsAnchor, setSettingsAnchor] = useState<{ rect: DOMRect, source?: 'button' | 'contextMenu' } | null>(null);
   const [addIconAnchor, setAddIconAnchor] = useState<DOMRect | null>(null);
   const [editingItem, setEditingItem] = useState<DockItem | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -77,9 +77,11 @@ function App() {
     settings: false,
   });
 
-  if (isAddEditModalOpen) mountedModals.current.addEdit = true;
-  if (isSearchEngineModalOpen) mountedModals.current.searchEngine = true;
-  if (isSettingsModalOpen) mountedModals.current.settings = true;
+  useEffect(() => {
+    if (isAddEditModalOpen) mountedModals.current.addEdit = true;
+    if (isSearchEngineModalOpen) mountedModals.current.searchEngine = true;
+    if (isSettingsModalOpen) mountedModals.current.settings = true;
+  }, [isAddEditModalOpen, isSearchEngineModalOpen, isSettingsModalOpen]);
 
   // ============================================================================
   // 性能优化: 使用 RAF 节流 + 状态变化检测，减少 mousemove 期间的重渲染
@@ -220,7 +222,8 @@ function App() {
       <Background />
       <ZenShelf onOpenSettings={(pos) => {
         // 直接使用传入的位置，不需要为了抵消 SettingsModal 的内部偏移而做运算
-        setSettingsAnchor({ left: pos.x, top: pos.y, right: pos.x, bottom: pos.y, width: 0, height: 0, x: pos.x, y: pos.y, toJSON: () => ({}) } as DOMRect);
+        const pseudoRect = { left: pos.x, top: pos.y, right: pos.x, bottom: pos.y, width: 0, height: 0, x: pos.x, y: pos.y, toJSON: () => ({}) } as DOMRect;
+        setSettingsAnchor({ rect: pseudoRect, source: 'contextMenu' });
         setIsSettingsModalOpen(true);
       }} />
       <DockLayoutContainer
@@ -245,7 +248,7 @@ function App() {
           onClick={(e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation();
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            setSettingsAnchor(rect);
+            setSettingsAnchor({ rect, source: 'button' });
             setIsSettingsModalOpen(true);
           }}
         />
@@ -315,11 +318,10 @@ function App() {
             isOpen={isSettingsModalOpen}
             onClose={() => setIsSettingsModalOpen(false)}
             // 显式添加偏移量：ZenShelf 右键菜单不需要偏移（anchorPosition 已经是鼠标位置），
-            // 但如果是从左上角按钮触发（settingsAnchor 来自 getBoundingClientRect），我们需要手动加上偏移量（+60px 或按钮高度+间距）
-            // 这里我们简单判断：如果是从按钮触发（通常 y < 100），加上偏移；如果是 ZenShelf 右键（通常 y > 100），不加偏移
+            // 从左上角按钮触发时，需要加上偏移量避开按钮。
             anchorPosition={settingsAnchor ? {
-              x: settingsAnchor.left,
-              y: settingsAnchor.top < 100 ? settingsAnchor.top + 60 : settingsAnchor.top
+              x: settingsAnchor.rect.left,
+              y: settingsAnchor.source === 'button' ? settingsAnchor.rect.top + 60 : settingsAnchor.rect.top
             } : { x: 0, y: 0 }}
           />
         </Suspense>
