@@ -74,6 +74,7 @@ const RecycleBinItem: React.FC<{
 
     // 解析图片贴纸的 Blob URL
     const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+    const [isSvgImage, setIsSvgImage] = useState<boolean>(false);
 
     useEffect(() => {
         if (sticker.type !== 'image') return;
@@ -88,6 +89,9 @@ const RecycleBinItem: React.FC<{
         db.getStickerImage(sticker.content).then(item => {
             if (cancelled) return;
             if (item) {
+                if (item.data.type === 'image/svg+xml') {
+                    setIsSvgImage(true);
+                }
                 url = URL.createObjectURL(item.data);
                 setResolvedImageUrl(url);
             }
@@ -307,13 +311,21 @@ const RecycleBinItem: React.FC<{
                         </div>
                     </div>
                 ) : (
-                    <img
-                        src={resolvedImageUrl || ''}
-                        alt="sticker"
-                        className={styles.recycleItemPreview}
-                        draggable={false}
-                        onDragStart={preventDrag}
-                    />
+                    <div className={[
+                        styles.recycleItemImageContainer,
+                        isSvgImage && styles.svgStickerWrapper
+                    ].filter(Boolean).join(' ')}>
+                        <img
+                            src={resolvedImageUrl || ''}
+                            alt="sticker"
+                            className={[
+                                styles.recycleItemPreview,
+                                isSvgImage && styles.svgSticker
+                            ].filter(Boolean).join(' ')}
+                            draggable={false}
+                            onDragStart={preventDrag}
+                        />
+                    </div>
                 )}
             </div>
         </div>

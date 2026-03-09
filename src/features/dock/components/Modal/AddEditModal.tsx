@@ -192,7 +192,7 @@ export const AddEditModal: React.FC<AddEditModalProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.svg"
             onChange={handleFileSelect}
             style={{ display: 'none' }}
           />

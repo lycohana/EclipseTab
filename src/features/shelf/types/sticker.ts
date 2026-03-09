@@ -25,6 +25,8 @@ export interface Sticker {
     scale?: number;          // 图片缩放比例（仅图片贴纸）
     isPinned?: boolean;      // 是否固定在原处不可移动
     style?: TextStickerStyle; // 仅针对文字贴纸的样式
+    hasCheckbox?: boolean;   // 是否带有复选框 (仅文字贴纸)
+    isChecked?: boolean;     // 复选框是否已勾选
 }
 
 /**

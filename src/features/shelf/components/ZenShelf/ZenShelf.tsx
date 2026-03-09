@@ -203,7 +203,7 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
     }, [addSticker, viewportScale]);
 
     // 处理文本输入提交
-    const handleTextSubmit = useCallback((content: string, style?: { color: string; textAlign: 'left' | 'center' | 'right'; fontSize: number }) => {
+    const handleTextSubmit = useCallback((content: string, style?: { color: string; textAlign: 'left' | 'center' | 'right'; fontSize: number }, hasCheckbox?: boolean) => {
         if (editingSticker) {
             updateSticker(editingSticker.id, {
                 content,
@@ -212,6 +212,7 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
                     textAlign: style.textAlign,
                     fontSize: style.fontSize,
                 } : editingSticker.style,
+                hasCheckbox: hasCheckbox !== undefined ? hasCheckbox : editingSticker.hasCheckbox,
             });
         } else if (textInputPos) {
             // 在参考坐标系中存储位置
@@ -225,6 +226,8 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
                     textAlign: style.textAlign,
                     fontSize: style.fontSize,
                 } : undefined,
+                hasCheckbox,
+                isChecked: false,
             });
         }
         setTextInputPos(null);
@@ -317,6 +320,9 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
                         onScaleChange={(scale) => {
                             updateSticker(sticker.id, { scale });
                         }}
+                        onToggleCheckbox={() => {
+                            updateSticker(sticker.id, { isChecked: !sticker.isChecked });
+                        }}
                         isEditMode={isEditMode}
                         viewportScale={viewportScale}
                         onDoubleClick={() => {
@@ -335,6 +341,7 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
                     y={textInputPos.y}
                     initialText={editingSticker?.content || ''}
                     initialStyle={editingSticker?.style}
+                    initialHasCheckbox={editingSticker?.hasCheckbox}
                     onSubmit={handleTextSubmit}
                     onCancel={handleTextCancel}
                     viewportScale={viewportScale}
@@ -453,7 +460,7 @@ export const ZenShelf: React.FC<ZenShelfProps> = ({ onOpenSettings }) => {
             <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.svg"
                 style={{ display: 'none' }}
                 onChange={handleFileChange}
             />

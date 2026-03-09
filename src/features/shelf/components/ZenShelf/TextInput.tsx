@@ -5,6 +5,7 @@ import { useThemeData } from '@/features/theme/context/ThemeContext';
 import { useLanguage } from '@/shared/context/LanguageContext';
 import plusIcon from '@/assets/icons/plus.svg';
 import minusIcon from '@/assets/icons/minus.svg';
+import checkIcon from '@/assets/icons/for-checkbox.svg';
 import { TEXT_COLORS } from './FloatingToolbar';
 import styles from './ZenShelf.module.css';
 
@@ -52,12 +53,13 @@ interface TextInputProps {
     y: number;
     initialText?: string;
     initialStyle?: { color: string; textAlign: 'left' | 'center' | 'right'; fontSize?: number };
-    onSubmit: (content: string, style?: { color: string; textAlign: 'left' | 'center' | 'right'; fontSize: number }) => void;
+    initialHasCheckbox?: boolean;
+    onSubmit: (content: string, style?: { color: string; textAlign: 'left' | 'center' | 'right'; fontSize: number }, hasCheckbox?: boolean) => void;
     onCancel: () => void;
     viewportScale: number;
 }
 
-export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', initialStyle, onSubmit, onCancel, viewportScale }) => {
+export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', initialStyle, initialHasCheckbox = false, onSubmit, onCancel, viewportScale }) => {
     const { t } = useLanguage();
     const { theme } = useThemeData();
     const inputRef = useRef<HTMLDivElement>(null);
@@ -71,6 +73,7 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
     const [fontSize, setFontSize] = useState<number>(
         (initialStyle?.fontSize as number) || getLastFontSize()
     );
+    const [hasCheckbox, setHasCheckbox] = useState<boolean>(initialHasCheckbox);
     const [isExiting, setIsExiting] = useState(false);
 
     // 持久化字体大小到 localStorage
@@ -142,7 +145,7 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
             const text = inputRef.current?.innerText?.trim() || '';
             if (text) {
                 // 如果提交内容，则不播放输入框出场动画
-                triggerExit(() => onSubmit(text, { color: textColor, textAlign, fontSize }), false);
+                triggerExit(() => onSubmit(text, { color: textColor, textAlign, fontSize }, hasCheckbox), false);
             } else {
                 triggerExit(onCancel);
             }
@@ -220,7 +223,7 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
         const trimmed = inputRef.current?.innerText?.trim() || '';
         if (trimmed) {
             // 如果提交内容，则不播放输入框出场动画
-            triggerExit(() => onSubmit(trimmed, { color: textColor, textAlign, fontSize }), false);
+            triggerExit(() => onSubmit(trimmed, { color: textColor, textAlign, fontSize }, hasCheckbox), false);
         } else {
             handleCancel();
         }
@@ -296,7 +299,14 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
             style={{ left: position.x, top: position.y }}
         >
             {/* 实时预览贴纸 - 直接在背景上显示 */}
-            <div ref={inputWrapperRef}>
+            <div ref={inputWrapperRef} className={hasCheckbox ? styles.textStickerContainer : ''}>
+                {hasCheckbox && (
+                    <button
+                        className={styles.textStickerCheckbox}
+                        style={{ cursor: 'default', pointerEvents: 'none' }}
+                        disabled
+                    />
+                )}
                 <div
                     ref={inputRef}
                     className={styles.stickerPreviewInput}
@@ -384,6 +394,17 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
                         />
                     ))}
                 </div>
+
+                <div className={styles.toolbarDivider} />
+
+                {/* 复选框切换按钮 */}
+                <button
+                    className={`${styles.toolbarCheckboxBtn} ${hasCheckbox ? styles.active : ''}`}
+                    onClick={() => setHasCheckbox(!hasCheckbox)}
+                    title={hasCheckbox ? 'Remove Checkbox' : 'Add Checkbox'}
+                >
+                    <span className={styles.toolbarIcon} style={{ WebkitMaskImage: `url(${checkIcon})`, maskImage: `url(${checkIcon})` }} />
+                </button>
 
                 <div className={styles.toolbarDivider} />
 

@@ -96,6 +96,9 @@ export async function compressIcon(dataUrl: string): Promise<string> {
     if (!dataUrl?.startsWith('data:image')) {
         return dataUrl;
     }
+    if (dataUrl.startsWith('data:image/svg+xml')) {
+        return dataUrl;
+    }
 
     try {
         const result = await runInWorker<string>('compressIcon', dataUrl);
@@ -153,6 +156,9 @@ export async function compressStickerImage(dataUrl: string): Promise<string> {
     if (!dataUrl?.startsWith('data:image')) {
         return dataUrl;
     }
+    if (dataUrl.startsWith('data:image/svg+xml')) {
+        return dataUrl;
+    }
 
     try {
         const result = await runInWorker<string>('compressStickerImage', dataUrl);
@@ -202,6 +208,10 @@ export async function compressStickerImage(dataUrl: string): Promise<string> {
  * @returns 压缩后的 Blob
  */
 export async function compressStickerImageToBlob(file: File | Blob): Promise<Blob> {
+    if (file.type === 'image/svg+xml') {
+        return file;
+    }
+
     try {
         const result = await runInWorker<Blob>('compressStickerImageToBlob', file);
         return result;

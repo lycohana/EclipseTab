@@ -8,7 +8,7 @@ import writeIcon from '@/assets/icons/write.svg';
 import trashIcon from '@/assets/icons/trash.svg';
 import uploadIcon from '@/assets/icons/upload.svg';
 import editIcon from '@/assets/icons/edit.svg';
-import exportIcon from '@/assets/icons/export.svg';
+import copyIcon from '@/assets/icons/copy.svg';
 import settingsIcon from '@/assets/icons/setting2.svg';
 import pinIcon from '@/assets/icons/pin.svg';
 
@@ -165,7 +165,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                         {isImageSticker ? (
                             <>
                                 <button className={styles.menuItem} onClick={() => { onCopyImage?.(); onClose(); }}>
-                                    <span className={styles.menuIcon} style={{ WebkitMaskImage: `url(${exportIcon})`, maskImage: `url(${exportIcon})` }} />
+                                    <span className={styles.menuIcon} style={{ WebkitMaskImage: `url(${copyIcon})`, maskImage: `url(${copyIcon})` }} />
                                     <span>{t.contextMenu.copyImage}</span>
                                 </button>
                                 <button className={styles.menuItem} onClick={() => { onExportImageSticker?.(); onClose(); }}>
@@ -176,7 +176,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                         ) : (
                             <>
                                 <button className={styles.menuItem} onClick={() => { onCopyText?.(); onClose(); }}>
-                                    <span className={styles.menuIcon} style={{ WebkitMaskImage: `url(${exportIcon})`, maskImage: `url(${exportIcon})` }} />
+                                    <span className={styles.menuIcon} style={{ WebkitMaskImage: `url(${copyIcon})`, maskImage: `url(${copyIcon})` }} />
                                     <span>{t.contextMenu.copyText}</span>
                                 </button>
                                 <button className={styles.menuItem} onClick={() => { onEditSticker?.(); onClose(); }}>

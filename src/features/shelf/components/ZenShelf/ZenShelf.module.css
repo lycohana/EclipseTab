@@ -74,6 +74,20 @@
     transition: filter var(--transition-smooth), outline-color var(--transition-smooth);
 }
 
+/* 如果是纯 SVG 贴纸，inner `img` 仅负责外轮廓白边描边滤波器 */
+.imageSticker.svgSticker {
+    outline: none;
+    filter: url(#text-sticker-stroke);
+}
+
+/* SVG 贴纸的外层容器（和文字贴纸的 .stickerText 原理一样，专门处理投影和投影动画） */
+.imageContainer.svgStickerWrapper {
+    /* 默认投影 - 较浅 */
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+    /*阴影平滑过渡*/
+    transition: filter var(--transition-smooth);
+}
+
 /* 拖拽/按下中的样式 - 文字贴纸内层只保留描边 */
 .textSticker.dragging {
     cursor: grabbing;
@@ -90,6 +104,12 @@
     will-change: transform, left, top, filter;
 }
 
+/* 拖拽/按下中的样式 - SVG 图片贴纸（由于包裹层分离，这里也只需要改外层） */
+.imageContainer.svgStickerWrapper.dragging {
+    cursor: grabbing;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.2));
+}
+
 /* 回弹动画 - 贴纸从UI区域弹回安全区域 */
 .sticker.bounceBack {
     transition: left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -101,6 +121,11 @@
 
 /* 创作模式下悬停效果 - 图片贴纸 */
 .imageSticker.creativeHover:hover {
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.12));
+}
+
+/* 创作模式下悬停效果 - SVG 图片贴纸（由于包裹层分离，这里也只需要改外层） */
+.imageContainer.svgStickerWrapper.creativeHover:hover {
     filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.12));
 }
 
@@ -683,16 +708,20 @@
     content: attr(data-placeholder);
     color: #999;
     pointer-events: none;
-    /* 用 text-shadow 模拟圆角描边，替代被移除的 SVG 滤镜，确保深色背景下可见 */
+    /* 用更密集的 text-shadow 模拟锐利的圆角描边外发光，消除模糊感 */
     text-shadow:
-        -2px -2px 2px white,
-        2px -2px 2px white,
-        -2px 2px 2px white,
-        2px 2px 2px white,
-        0 -2px 2px white,
-        0 2px 2px white,
-        -2px 0 2px white,
-        2px 0 2px white;
+        -3px -3px 0 white,
+        0 -3px 0 white,
+        3px -3px 0 white,
+        3px 0 0 white,
+        3px 3px 0 white,
+        0 3px 0 white,
+        -3px 3px 0 white,
+        -3px 0 0 white,
+        -2px -2px 0 white,
+        2px -2px 0 white,
+        -2px 2px 0 white,
+        2px 2px 0 white;
 }
 
 /* ===== 跟随工具栏 ===== */
@@ -1087,6 +1116,20 @@
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
 }
 
+/* 回收站中的 SVG 贴纸内层：移除方框，使用 SVG 滤镜描边 */
+.recycleItemPreview.svgSticker {
+    outline: none;
+    filter: url(#text-sticker-stroke);
+}
+
+/* 回收站中的 SVG 贴纸外层包裹：负责阴影（由于回收站不涉及拖拽交互阴影动画，直接给固定阴影即可） */
+.recycleItemImageContainer.svgStickerWrapper {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .emptyState {
     display: flex;
     flex-direction: column;
@@ -1426,4 +1469,75 @@
 /* Ensure text stickers have vertical padding for better height/swipe feel while keeping left alignment */
 .recycleBinItem .textSticker {
     padding: 12px 0;
+}
+
+/* ===== 文本贴纸复选框样式 ===== */
+.textStickerContainer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: var(--spacing-padding-medium);
+}
+
+.textStickerContainer .textSticker,
+.textStickerContainer .stickerPreviewInput {
+    padding-left: 0px;
+}
+
+.textStickerCheckbox {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 8px solid var(--color-sticker-stroke, #FFFFFF);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+    flex-shrink: 0;
+    pointer-events: auto;
+    /* 确保能响应点击 */
+    margin-left: -4px;
+}
+
+/* 区分选中状态的复选框 */
+.textStickerCheckboxChecked {
+    background: #FFFFFF;
+    border-color: #FFFFFF;
+}
+
+/* 划除线的样式 */
+.textStickerCrossedOut {
+    text-decoration: line-through;
+    text-decoration-thickness: 4px;
+    text-decoration-color: currentColor;
+    /* Removed opacity reduction to keep text original color */
+}
+
+/* 工具栏复选框按钮 */
+.toolbarCheckboxBtn {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-small);
+    border: 2px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-primary);
+    transition: all var(--transition-fast);
+}
+
+.toolbarCheckboxBtn:hover {
+    background: var(--color-bg-tertiary);
+    color: var(--blue-500);
+}
+
+.toolbarCheckboxBtn.active {
+    background: var(--blue-500);
+    color: white;
 }

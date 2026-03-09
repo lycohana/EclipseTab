@@ -3,6 +3,7 @@ import { Sticker, IMAGE_MAX_WIDTH } from '@/shared/types';
 import { FloatingToolbar } from './FloatingToolbar';
 import { useThemeData } from '@/features/theme/context/ThemeContext';
 import { db } from '@/shared/utils/db';
+import checkIcon from '@/assets/icons/for-checkbox.svg';
 import styles from './ZenShelf.module.css';
 
 // ============================================================================
@@ -60,6 +61,7 @@ interface StickerItemProps {
     onDoubleClick?: () => void;
     onDragStart?: () => void;
     onDragEnd?: () => void;
+    onToggleCheckbox?: () => void;
 }
 
 const StickerItemComponent: React.FC<StickerItemProps> = ({
@@ -77,6 +79,7 @@ const StickerItemComponent: React.FC<StickerItemProps> = ({
     onDoubleClick,
     onDragStart,
     onDragEnd,
+    onToggleCheckbox,
 }) => {
     const { theme } = useThemeData();
     const elementRef = useRef<HTMLDivElement>(null);
@@ -90,6 +93,7 @@ const StickerItemComponent: React.FC<StickerItemProps> = ({
     const [imageNaturalWidth, setImageNaturalWidth] = useState<number>(300);
     // 图片贴纸的解析后 Blob URL
     const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+    const [isSvgImage, setIsSvgImage] = useState<boolean>(false);
 
     // 从 IndexedDB 加载图片贴纸数据
     useEffect(() => {
@@ -107,6 +111,9 @@ const StickerItemComponent: React.FC<StickerItemProps> = ({
         db.getStickerImage(sticker.content).then(item => {
             if (cancelled) return;
             if (item) {
+                if (item.data.type === 'image/svg+xml') {
+                    setIsSvgImage(true);
+                }
                 url = URL.createObjectURL(item.data);
                 setResolvedImageUrl(url);
             }
@@ -170,6 +177,9 @@ const StickerItemComponent: React.FC<StickerItemProps> = ({
             return;
         }
         if ((e.target as HTMLElement).closest(`.${styles.resizeHandle}`)) {
+            return;
+        }
+        if ((e.target as HTMLElement).closest(`.${styles.textStickerCheckbox}`)) {
             return;
         }
 
@@ -630,29 +640,59 @@ const StickerItemComponent: React.FC<StickerItemProps> = ({
                 onDoubleClick={handleDoubleClick}
             >
                 {sticker.type === 'text' ? (
-                    <div
-                        className={[
-                            styles.textSticker,
-                            isDragging && styles.dragging,
-                            isCreativeMode && styles.creativeHover,
-                        ].filter(Boolean).join(' ')}
-                        style={{
-                            color: getThemeAwareColor(sticker.style?.color || '#1C1C1E', theme),
-                            textAlign: sticker.style?.textAlign || 'left',
-                            fontSize: scaledFontSize,
-                        }}
-                    >
-                        {sticker.content}
+                    <div className={sticker.hasCheckbox ? styles.textStickerContainer : ''}>
+                        {sticker.hasCheckbox && (
+                            <button
+                                className={`${styles.textStickerCheckbox} ${sticker.isChecked ? styles.textStickerCheckboxChecked : ''}`}
+                                onPointerDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation(); // prevent dragging/selecting
+                                    onToggleCheckbox?.();
+                                }}
+                                onDoubleClick={(e) => {
+                                    e.stopPropagation(); // prevent entering edit mode
+                                }}
+                                title={sticker.isChecked ? 'Uncheck' : 'Check'}
+                            >
+                                {sticker.isChecked && (
+                                    <span
+                                        className={styles.toolbarIcon}
+                                        style={{ WebkitMaskImage: `url(${checkIcon})`, maskImage: `url(${checkIcon})`, backgroundColor: '#000000', width: '24px', height: '24px', position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                    />
+                                )}
+                            </button>
+                        )}
+                        <div
+                            className={[
+                                styles.textSticker,
+                                isDragging && styles.dragging,
+                                isCreativeMode && styles.creativeHover,
+                                sticker.isChecked && styles.textStickerCrossedOut,
+                            ].filter(Boolean).join(' ')}
+                            style={{
+                                color: getThemeAwareColor(sticker.style?.color || '#1C1C1E', theme),
+                                textAlign: sticker.style?.textAlign || 'left',
+                                fontSize: scaledFontSize,
+                            }}
+                        >
+                            {sticker.content}
+                        </div>
                     </div>
                 ) : (
-                    <div className={styles.imageContainer}>
+                    <div className={[
+                        styles.imageContainer,
+                        isSvgImage && styles.svgStickerWrapper,
+                        isSvgImage && isDragging && styles.dragging,
+                        isSvgImage && isCreativeMode && styles.creativeHover,
+                    ].filter(Boolean).join(' ')}>
                         <img
                             src={resolvedImageUrl || ''}
                             alt="sticker"
                             className={[
                                 styles.imageSticker,
-                                isDragging && styles.dragging,
-                                isCreativeMode && styles.creativeHover,
+                                isSvgImage && styles.svgSticker,
+                                !isSvgImage && isDragging && styles.dragging,
+                                !isSvgImage && isCreativeMode && styles.creativeHover,
                             ].filter(Boolean).join(' ')}
                             style={{ width: imageWidth }}
                             draggable={false}
@@ -706,6 +746,8 @@ const arePropsEqual = (prev: StickerItemProps, next: StickerItemProps) => {
         prev.sticker.scale === next.sticker.scale &&
         prev.sticker.type === next.sticker.type &&
         prev.sticker.isPinned === next.sticker.isPinned &&
+        prev.sticker.hasCheckbox === next.sticker.hasCheckbox &&
+        prev.sticker.isChecked === next.sticker.isChecked &&
         prev.sticker.style?.color === next.sticker.style?.color &&
         prev.sticker.style?.textAlign === next.sticker.style?.textAlign &&
         prev.sticker.style?.fontSize === next.sticker.style?.fontSize &&
