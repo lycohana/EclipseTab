@@ -1509,20 +1509,18 @@
     border-color: #FFFFFF;
 }
 
-/* 划除线的样式 */
+/* 划除线的样式 - 目前设置为无划线 */
 .textStickerCrossedOut {
-    text-decoration: line-through;
-    text-decoration-thickness: 4px;
-    text-decoration-color: currentColor;
-    /* Removed opacity reduction to keep text original color */
+    text-decoration: none;
+    /* Removed line-through as per user request */
 }
 
 /* 工具栏复选框按钮 */
 .toolbarCheckboxBtn {
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-small);
-    border: 2px solid transparent;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
     background: transparent;
     cursor: pointer;
     display: flex;
@@ -1540,4 +1538,9 @@
 .toolbarCheckboxBtn.active {
     background: var(--blue-500);
     color: white;
+}
+
+.toolbarCheckboxBtn .toolbarIcon {
+    width: 26px;
+    height: 26px;
 }

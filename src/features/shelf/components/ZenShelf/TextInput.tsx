@@ -5,7 +5,7 @@ import { useThemeData } from '@/features/theme/context/ThemeContext';
 import { useLanguage } from '@/shared/context/LanguageContext';
 import plusIcon from '@/assets/icons/plus.svg';
 import minusIcon from '@/assets/icons/minus.svg';
-import checkIcon from '@/assets/icons/for-checkbox.svg';
+import checkCircleIcon from '@/assets/icons/check-circle.svg';
 import { TEXT_COLORS } from './FloatingToolbar';
 import styles from './ZenShelf.module.css';
 
@@ -403,7 +403,7 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
                     onClick={() => setHasCheckbox(!hasCheckbox)}
                     title={hasCheckbox ? 'Remove Checkbox' : 'Add Checkbox'}
                 >
-                    <span className={styles.toolbarIcon} style={{ WebkitMaskImage: `url(${checkIcon})`, maskImage: `url(${checkIcon})` }} />
+                    <span className={styles.toolbarIcon} style={{ WebkitMaskImage: `url(${checkCircleIcon})`, maskImage: `url(${checkCircleIcon})` }} />
                 </button>
 
                 <div className={styles.toolbarDivider} />
