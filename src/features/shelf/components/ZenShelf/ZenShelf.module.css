@@ -175,6 +175,22 @@
     border-radius: var(--radius-medium);
 }
 
+/* ===== 文字贴纸中的超链接样式 ===== */
+
+.textSticker .stickerLink {
+    color: inherit;  /* 继承父元素的文字颜色 */
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.textSticker .stickerLink:hover {
+    opacity: 0.7;  /* 悬停时降低透明度 */
+    text-decoration-thickness: 3px;
+}
+
 /* 图片容器 - 用于定位缩放手柄 */
 .imageContainer {
     position: relative;

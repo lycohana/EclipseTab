@@ -3,6 +3,7 @@ import { Sticker, IMAGE_MAX_WIDTH } from '@/shared/types';
 import { FloatingToolbar } from './FloatingToolbar';
 import { useThemeData } from '@/features/theme/context/ThemeContext';
 import { db } from '@/shared/utils/db';
+import { hasMarkdownLinks, splitTextWithLinks } from '@/shared/utils/markdownLinks';
 import checkIcon from '@/assets/icons/for-checkbox.svg';
 import styles from './ZenShelf.module.css';
 
@@ -81,7 +82,7 @@ const StickerItemComponent: React.FC<StickerItemProps> = ({
     onDragEnd,
     onToggleCheckbox,
 }) => {
-    const { theme } = useThemeData();
+    const { theme, openInNewTab } = useThemeData();
     const elementRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
@@ -675,7 +676,28 @@ const StickerItemComponent: React.FC<StickerItemProps> = ({
                                 fontSize: scaledFontSize,
                             }}
                         >
-                            {sticker.content}
+                            {hasMarkdownLinks(sticker.content) ? (
+                                splitTextWithLinks(sticker.content).map((fragment, index) => (
+                                    fragment.type === 'link' ? (
+                                        <a
+                                            key={index}
+                                            href={fragment.url}
+                                            className={styles.stickerLink}
+                                            target={openInNewTab ? '_blank' : '_self'}
+                                            rel={openInNewTab ? 'noopener noreferrer' : undefined}
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            {fragment.content}
+                                        </a>
+                                    ) : (
+                                        <span key={index}>{fragment.content}</span>
+                                    )
+                                ))
+                            ) : (
+                                sticker.content
+                            )}
                         </div>
                     </div>
                 ) : (

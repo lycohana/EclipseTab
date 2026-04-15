@@ -7,6 +7,7 @@ import plusIcon from '@/assets/icons/plus.svg';
 import minusIcon from '@/assets/icons/minus.svg';
 import checkCircleIcon from '@/assets/icons/check-circle.svg';
 import { TEXT_COLORS } from './FloatingToolbar';
+import { markdownToEditableText, markdownToPlainText, rebuildMarkdownFromEditText } from '@/shared/utils/markdownLinks';
 import styles from './ZenShelf.module.css';
 
 // localStorage 键：记忆用户上次使用的字体大小
@@ -66,7 +67,8 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
     const inputWrapperRef = useRef<HTMLDivElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [value, setValue] = useState(initialText);
+    // 存储原始 Markdown 内容，用于重建链接
+    const originalMarkdownRef = useRef(initialText);
     // 始终使用左对齐
     const textAlign = 'left' as const;
     const [textColor, setTextColor] = useState(initialStyle?.color || TEXT_COLORS[0]);
@@ -75,11 +77,17 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
     );
     const [hasCheckbox, setHasCheckbox] = useState<boolean>(initialHasCheckbox);
     const [isExiting, setIsExiting] = useState(false);
+    const [hasContent, setHasContent] = useState<boolean>(() => !!markdownToPlainText(initialText).trim());
 
     // 持久化字体大小到 localStorage
     useEffect(() => {
         localStorage.setItem(LAST_FONT_SIZE_KEY, fontSize.toString());
     }, [fontSize]);
+
+    useEffect(() => {
+        originalMarkdownRef.current = initialText;
+        setHasContent(!!markdownToPlainText(initialText).trim());
+    }, [initialText]);
 
     // 挂载时聚焦并仅对工具栏播放入场动画
     useEffect(() => {
@@ -95,9 +103,10 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
         }
         if (inputRef.current) {
             inputRef.current.focus();
-            // 如果是编辑，设置初始文本
+            // 如果是编辑，设置初始文本（可往返的链接编辑格式）
             if (initialText) {
-                inputRef.current.innerText = initialText;
+                const editableText = markdownToEditableText(initialText);
+                inputRef.current.innerText = editableText;
                 // 将光标移动到末尾
                 const range = document.createRange();
                 range.selectNodeContents(inputRef.current);
@@ -132,6 +141,11 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
         }
     }, [isExiting]);
 
+    const handleSubmitContent = useCallback((editText: string) => {
+        const contentWithLinks = rebuildMarkdownFromEditText(editText, originalMarkdownRef.current);
+        triggerExit(() => onSubmit(contentWithLinks, { color: textColor, textAlign, fontSize }, hasCheckbox), false);
+    }, [fontSize, hasCheckbox, onSubmit, textColor, textAlign, triggerExit]);
+
     // 点击外部关闭（仅当点击空白背景时）
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -142,10 +156,9 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
                 return;
             }
             // 如果有内容则提交，否则取消
-            const text = inputRef.current?.innerText?.trim() || '';
-            if (text) {
-                // 如果提交内容，则不播放输入框出场动画
-                triggerExit(() => onSubmit(text, { color: textColor, textAlign, fontSize }, hasCheckbox), false);
+            const editText = inputRef.current?.innerText?.trim() || '';
+            if (editText) {
+                handleSubmitContent(editText);
             } else {
                 triggerExit(onCancel);
             }
@@ -157,7 +170,7 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
             clearTimeout(timer);
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [textColor, fontSize, onSubmit, onCancel, isExiting, triggerExit]);
+    }, [handleSubmitContent, isExiting, onCancel, triggerExit]);
 
     // 字体大小调整常量
     const FONT_SIZE_STEP = 2; // 每次调整的步长（px）
@@ -206,8 +219,10 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
     };
 
     const handleInput = () => {
+        // 更新 hasContent 状态以控制确认按钮的 disabled 状态
         if (inputRef.current) {
-            setValue(inputRef.current.innerText);
+            const text = inputRef.current.innerText.trim();
+            setHasContent(!!text);
         }
     };
 
@@ -222,8 +237,7 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
     const handleSubmit = () => {
         const trimmed = inputRef.current?.innerText?.trim() || '';
         if (trimmed) {
-            // 如果提交内容，则不播放输入框出场动画
-            triggerExit(() => onSubmit(trimmed, { color: textColor, textAlign, fontSize }, hasCheckbox), false);
+            handleSubmitContent(trimmed);
         } else {
             handleCancel();
         }
@@ -415,7 +429,7 @@ export const TextInput: React.FC<TextInputProps> = ({ x, y, initialText = '', in
                 <button
                     className={styles.toolbarConfirmBtn}
                     onClick={handleSubmit}
-                    disabled={!value.trim()}
+                    disabled={!hasContent}
                 >
                     {t.textInput.confirm}
                 </button>

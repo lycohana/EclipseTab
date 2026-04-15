@@ -1,4 +1,5 @@
 import { Sticker } from '@/shared/types';
+import { markdownToPlainText } from '@/shared/utils/markdownLinks';
 
 /**
  * 将 Blob 作为文件下载，并指定文件名。
@@ -81,7 +82,7 @@ export function createTextStickerImage(sticker: Sticker): Promise<Blob | null> {
         measureCtx.font = `900 ${BASE_FONT_SIZE}px "Bricolage Grotesque", sans-serif`;
 
         // 测量文本内容
-        const lines = sticker.content.split('\n');
+        const lines = markdownToPlainText(sticker.content).split('\n');
         const lineHeight = BASE_FONT_SIZE * 0.95;
 
         // 寻找最大行宽
